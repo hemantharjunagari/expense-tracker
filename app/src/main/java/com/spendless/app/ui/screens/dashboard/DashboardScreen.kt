@@ -30,7 +30,7 @@ import com.spendless.app.ui.theme.*
 
 @Composable
 fun DashboardScreen(
-    onNavigateToTransactions: (String?) -> Unit,
+    onNavigateToTransactions: (String?, Long?) -> Unit,
     onNavigateToAnalytics: () -> Unit,
     onNavigateToBudget: () -> Unit,
     onNavigateToSettings: () -> Unit,
@@ -45,7 +45,7 @@ fun DashboardScreen(
             SpendLessBottomBar(
                 currentRoute = "dashboard",
                 onDashboard = {},
-                onTransactions = { onNavigateToTransactions(null) },
+                onTransactions = { onNavigateToTransactions(null, null) },
                 onAnalytics = onNavigateToAnalytics,
                 onLendBorrow = onNavigateToLendBorrow
             )
@@ -97,12 +97,12 @@ fun DashboardScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        item {
+                         item {
                             MetricCard(
                                 label = "BUDGET",
                                 amount = uiState.totalBudget,
                                 modifier = Modifier.width(140.dp),
-                                onClick = { onNavigateToTransactions("EXPENSES") }
+                                onClick = { onNavigateToTransactions("EXPENSES", null) }
                             )
                         }
                         item {
@@ -111,7 +111,7 @@ fun DashboardScreen(
                                 amount = uiState.totalSpent,
                                 modifier = Modifier.width(140.dp),
                                 isHighlighted = true,
-                                onClick = { onNavigateToTransactions("EXPENSES") }
+                                onClick = { onNavigateToTransactions("EXPENSES", null) }
                             )
                         }
                         item {
@@ -119,7 +119,7 @@ fun DashboardScreen(
                                 label = "REMAINING",
                                 amount = uiState.remaining,
                                 modifier = Modifier.width(140.dp),
-                                onClick = { onNavigateToTransactions("EXPENSES") }
+                                onClick = { onNavigateToTransactions("EXPENSES", null) }
                             )
                         }
                         item {
@@ -127,7 +127,7 @@ fun DashboardScreen(
                                 label = "INCOME",
                                 amount = uiState.totalIncome,
                                 modifier = Modifier.width(140.dp),
-                                onClick = { onNavigateToTransactions("INCOME") }
+                                onClick = { onNavigateToTransactions("INCOME", null) }
                             )
                         }
                     }
@@ -161,22 +161,22 @@ fun DashboardScreen(
                 // Recent transactions
                 if (uiState.recentTransactions.isNotEmpty()) {
                     item {
-                        Spacer(modifier = Modifier.height(24.dp))
-                        SectionHeader(title = "Recent Transactions", onClick = { onNavigateToTransactions(null) })
+                         Spacer(modifier = Modifier.height(24.dp))
+                        SectionHeader(title = "Recent Transactions", onClick = { onNavigateToTransactions(null, null) })
                         Spacer(modifier = Modifier.height(8.dp))
                     }
 
                     items(uiState.recentTransactions) { transaction ->
                         TransactionItem(
                             transaction = transaction,
-                            onClick = { onNavigateToTransactions(null) }
+                            onClick = { onNavigateToTransactions(null, null) }
                         )
                         TransactionDivider()
                     }
 
                     item {
                         TextButton(
-                            onClick = { onNavigateToTransactions(null) },
+                            onClick = { onNavigateToTransactions(null, null) },
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)
                         ) {
                             Text(
@@ -253,11 +253,15 @@ fun DashboardScreen(
                     }
             )
 
-            if (uiState.showTrackingPopup) {
+             if (uiState.showTrackingPopup) {
                 TrackingDialog(
                     uiState = uiState,
                     onDismiss = { viewModel.setTrackingPopupVisible(false) },
-                    onPeriodSelected = { viewModel.setTrackingPeriod(it) }
+                    onPeriodSelected = { viewModel.setTrackingPeriod(it) },
+                    onNavigateToDate = { dateMs ->
+                        viewModel.setTrackingPopupVisible(false)
+                        onNavigateToTransactions(null, dateMs)
+                    }
                 )
             }
         }

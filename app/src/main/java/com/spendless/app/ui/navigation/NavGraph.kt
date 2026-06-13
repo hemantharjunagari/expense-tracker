@@ -20,8 +20,9 @@ import com.spendless.app.ui.screens.transactions.TransactionsScreen
 sealed class Screen(val route: String) {
     data object Onboarding  : Screen("onboarding")
     data object Dashboard   : Screen("dashboard")
-    data object Transactions: Screen("transactions?tab={tab}") {
+    data object Transactions: Screen("transactions?tab={tab}&dateMs={dateMs}") {
         fun route(tab: String) = "transactions?tab=$tab"
+        fun routeWithDate(dateMs: Long) = "transactions?dateMs=$dateMs"
     }
     data object Analytics   : Screen("analytics")
     data object Budget      : Screen("budget")
@@ -82,8 +83,12 @@ fun NavGraph(
 
         composable(Screen.Dashboard.route) {
             DashboardScreen(
-                onNavigateToTransactions = { tab ->
-                    val route = if (tab != null) Screen.Transactions.route(tab) else Screen.Transactions.route
+                onNavigateToTransactions = { tab, dateMs ->
+                    val route = when {
+                        dateMs != null -> Screen.Transactions.routeWithDate(dateMs)
+                        tab != null -> Screen.Transactions.route(tab)
+                        else -> Screen.Transactions.route
+                    }
                     navController.navigate(route)
                 },
                 onNavigateToAnalytics    = { navController.navigate(Screen.Analytics.route) },
@@ -96,16 +101,20 @@ fun NavGraph(
 
         composable(
             route = Screen.Transactions.route,
-            arguments = listOf(navArgument("tab") {
-                type = NavType.StringType
-                nullable = true
-                defaultValue = null
-            })
+            arguments = listOf(
+                navArgument("tab") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("dateMs") {
+                    type = NavType.LongType
+                    defaultValue = -1L
+                }
+            )
         ) {
             TransactionsScreen(onNavigateBack = { navController.popBackStack() })
         }
-
-
 
         composable(Screen.Analytics.route) {
             AnalyticsScreen(onNavigateBack = { navController.popBackStack() })

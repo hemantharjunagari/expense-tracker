@@ -56,7 +56,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import android.provider.ContactsContract
 import androidx.compose.material3.OutlinedIconButton
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionsScreen(
     onNavigateBack: () -> Unit,
@@ -76,6 +76,12 @@ fun TransactionsScreen(
     var showFilterSheet by remember { mutableStateOf(false) }
     var showBulkCategoryPicker by remember { mutableStateOf(false) }
     var collapsedMonths by rememberSaveable { mutableStateOf(emptyList<String>()) }
+
+    var isSearchExpanded by remember { mutableStateOf(false) }
+    var showPeriodSheet by remember { mutableStateOf(false) }
+    var showCustomDatePicker by remember { mutableStateOf(false) }
+    var showCategoryFilterSheet by remember { mutableStateOf(false) }
+    var showAmountFilterSheet by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -101,19 +107,11 @@ fun TransactionsScreen(
                         IconButton(onClick = onNavigateBack) {
                             Icon(Icons.Outlined.ArrowBack, null, tint = MaterialTheme.colorScheme.onBackground)
                         }
-                        Column {
-                            Text(
-                                "Transactions",
-                                style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-                            PeriodSelector(
-                                selectedPeriod = filterState.period,
-                                onPeriodSelected = viewModel::setPeriod,
-                                resolvedRange = currentRange,
-                                customRange = filterState.customDateRange
-                            )
-                        }
+                        Text(
+                            "Transactions",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
                         Spacer(modifier = Modifier.weight(1f))
                         
                         SortSelector(
@@ -131,9 +129,13 @@ fun TransactionsScreen(
                             filterState.isExcludedFromBudget != null ||
                             filterState.isExcludedFromAnalytics != null ||
                             filterState.contactName != null ||
-                            filterState.selectedMerchant != null
+                            filterState.selectedMerchant != null ||
+                            filterState.period != TransactionPeriod.CURRENT_CYCLE
                         ) {
-                            TextButton(onClick = viewModel::clearFilters) {
+                            TextButton(onClick = {
+                                viewModel.clearFilters()
+                                viewModel.setPeriod(TransactionPeriod.CURRENT_CYCLE)
+                            }) {
                                 Text("Clear", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
@@ -207,40 +209,46 @@ fun TransactionsScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Search & Filter Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = filterState.searchQuery,
-                        onValueChange = viewModel::setSearchQuery,
-                        placeholder = { Text("Search merchants, notes...", color = MaterialTheme.colorScheme.onSurfaceVariant) },
-                        leadingIcon = {
-                            Icon(Icons.Outlined.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        },
-                        trailingIcon = {
-                            if (filterState.searchQuery.isNotBlank()) {
-                                IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                                    Icon(Icons.Outlined.Close, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                // Consolidated Zomato/Amazon style search and filters pill row
+                if (isSearchExpanded) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = filterState.searchQuery,
+                            onValueChange = viewModel::setSearchQuery,
+                            placeholder = { Text("Search merchants, notes...", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                            leadingIcon = {
+                                Icon(Icons.Outlined.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            },
+                            trailingIcon = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (filterState.searchQuery.isNotBlank()) {
+                                        IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                                            Icon(Icons.Outlined.Close, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    }
+                                    IconButton(onClick = { isSearchExpanded = false }) {
+                                        Icon(Icons.Outlined.ArrowBack, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
                                 }
-                            }
-                        },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                            focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
-                            cursorColor = MaterialTheme.colorScheme.primary,
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                        ),
-                        shape = ChipShape
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    
+                            },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                                focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+                                cursorColor = MaterialTheme.colorScheme.primary,
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            shape = ChipShape
+                        )
+                    }
+                } else {
                     val hasActiveAdvancedFilters = filterState.minAmount != null || 
                         filterState.maxAmount != null || 
                         filterState.status != null || 
@@ -249,80 +257,158 @@ fun TransactionsScreen(
                         filterState.isExcludedFromBudget != null || 
                         filterState.isExcludedFromAnalytics != null || 
                         filterState.contactName != null || 
-                        filterState.selectedMerchant != null ||
-                        filterState.customDateRange != null
+                        filterState.selectedMerchant != null
 
-                    IconButton(
-                        onClick = { showFilterSheet = true },
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(
-                                if (hasActiveAdvancedFilters) MaterialTheme.colorScheme.primaryContainer 
-                                else MaterialTheme.colorScheme.surfaceVariant,
-                                shape = ChipShape
-                            )
+                    val isSearchActive = filterState.searchQuery.isNotEmpty()
+                    val searchLabel = if (isSearchActive) "Search: \"${filterState.searchQuery}\"" else "Search"
+
+                    val isPeriodActive = filterState.period != TransactionPeriod.CURRENT_CYCLE
+                    val periodLabel = filterState.period.name.replace("_", " ").lowercase()
+                        .replaceFirstChar { it.uppercase() }
+
+                    val isCategoryActive = filterState.selectedCategory != null
+                    val categoryLabel = filterState.selectedCategory?.let { "${it.emoji} ${it.displayName}" } ?: "Category: All"
+
+                    val minAmount = filterState.minAmount
+                    val maxAmount = filterState.maxAmount
+                    val isAmountActive = minAmount != null || maxAmount != null
+                    val amountLabel = when {
+                        minAmount != null && maxAmount != null -> "Amount: ₹${minAmount.toInt()} - ₹${maxAmount.toInt()}"
+                        minAmount != null -> "Amount: >₹${minAmount.toInt()}"
+                        maxAmount != null -> "Amount: <₹${maxAmount.toInt()}"
+                        else -> "Amount: Any"
+                    }
+
+                    val isBudgetActive = filterState.isExcludedFromBudget != null
+                    val budgetLabel = when (filterState.isExcludedFromBudget) {
+                        null -> "Budget: Either"
+                        false -> "Budget: Included"
+                        true -> "Budget: Excluded"
+                    }
+
+                    val isAnalyticsActive = filterState.isExcludedFromAnalytics != null
+                    val analyticsLabel = when (filterState.isExcludedFromAnalytics) {
+                        null -> "Analytics: Either"
+                        false -> "Analytics: Included"
+                        true -> "Analytics: Excluded"
+                    }
+
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        BadgedBox(
-                            badge = {
-                                if (hasActiveAdvancedFilters) {
-                                    Badge(
-                                        containerColor = MaterialTheme.colorScheme.primary,
-                                        contentColor = MaterialTheme.colorScheme.onPrimary
+                        // 1. Advanced Filters Pill
+                        item {
+                            FilterPill(
+                                selected = hasActiveAdvancedFilters,
+                                onClick = { showFilterSheet = true },
+                                label = "Filters",
+                                icon = {
+                                    Icon(
+                                        Icons.Outlined.FilterList,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
-                            }
-                        ) {
-                            Icon(
-                                Icons.Outlined.FilterList,
-                                contentDescription = "Advanced Filter",
-                                tint = if (hasActiveAdvancedFilters) MaterialTheme.colorScheme.primary 
-                                       else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                    }
-                }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Category filter chips
-                val categoriesFiltered = allCategories.filter { cat ->
-                    when (filterState.selectedTab) {
-                        TransactionTab.EXPENSES -> cat.name != "INCOME" && cat.name != "TRANSFER" && cat.name != "SELF_TRANSFER" && cat.name != "UNCATEGORIZED"
-                        TransactionTab.INCOME -> cat.name == "INCOME"
-                        TransactionTab.SELF_TRANSFER -> cat.name == "SELF_TRANSFER"
-                        TransactionTab.UNCATEGORIZED -> cat.name == "UNCATEGORIZED"
-                        else -> true
-                    }
-                }
-
-                if (categoriesFiltered.size > 1) {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // 2. Search Pill
                         item {
-                            FilterChip(
-                                selected = filterState.selectedCategory == null,
-                                onClick = { viewModel.setCategory(null) },
-                                label = { Text("All Categories") },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                            FilterPill(
+                                selected = isSearchActive,
+                                onClick = { isSearchExpanded = true },
+                                label = searchLabel,
+                                icon = {
+                                    Icon(
+                                        Icons.Outlined.Search,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             )
                         }
-                        items(categoriesFiltered) { category ->
-                            FilterChip(
-                                selected = filterState.selectedCategory == category,
-                                onClick = { viewModel.setCategory(category) },
-                                label = {
-                                    Text("${category.emoji} ${category.displayName}")
+
+                        // 3. Date Range Pill
+                        item {
+                            FilterPill(
+                                selected = isPeriodActive,
+                                onClick = { showPeriodSheet = true },
+                                label = periodLabel,
+                                icon = {
+                                    Icon(
+                                        Icons.Outlined.DateRange,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            )
+                        }
+
+                        // 4. Category Pill
+                        item {
+                            FilterPill(
+                                selected = isCategoryActive,
+                                onClick = { showCategoryFilterSheet = true },
+                                label = categoryLabel,
+                                icon = {
+                                    Icon(
+                                        Icons.Outlined.Label,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            )
+                        }
+
+                        // 5. Amount Pill
+                        item {
+                            FilterPill(
+                                selected = isAmountActive,
+                                onClick = { showAmountFilterSheet = true },
+                                label = amountLabel,
+                                icon = {
+                                    Icon(
+                                        Icons.Outlined.Payments,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            )
+                        }
+
+                        // 6. In Budget Pill
+                        item {
+                            FilterPill(
+                                selected = isBudgetActive,
+                                onClick = {
+                                    viewModel.updateFilters { it.copy(
+                                        isExcludedFromBudget = when (it.isExcludedFromBudget) {
+                                            null -> false
+                                            false -> true
+                                            true -> null
+                                        }
+                                    ) }
                                 },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                label = budgetLabel
+                            )
+                        }
+
+                        // 7. In Analytics Pill
+                        item {
+                            FilterPill(
+                                selected = isAnalyticsActive,
+                                onClick = {
+                                    viewModel.updateFilters { it.copy(
+                                        isExcludedFromAnalytics = when (it.isExcludedFromAnalytics) {
+                                            null -> false
+                                            false -> true
+                                            true -> null
+                                        }
+                                    ) }
+                                },
+                                label = analyticsLabel
                             )
                         }
                     }
@@ -514,6 +600,231 @@ fun TransactionsScreen(
                     viewModel.clearFilters()
                 }
             )
+        }
+
+        if (showPeriodSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showPeriodSheet = false },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                shape = BottomSheetShape
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp)
+                        .navigationBarsPadding(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        "Select Date Range",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 400.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        TransactionPeriod.entries.forEach { period ->
+                            val label = period.name.replace("_", " ").lowercase()
+                                .replaceFirstChar { it.uppercase() }
+                            val isSelected = filterState.period == period
+                            Surface(
+                                onClick = {
+                                    if (period == TransactionPeriod.CUSTOM) {
+                                        showCustomDatePicker = true
+                                    } else {
+                                        viewModel.setPeriod(period)
+                                    }
+                                    showPeriodSheet = false
+                                },
+                                shape = ChipShape,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(label, style = MaterialTheme.typography.bodyLarge)
+                                    Spacer(Modifier.weight(1f))
+                                    if (isSelected) {
+                                        Icon(Icons.Outlined.Check, null, modifier = Modifier.size(20.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (showCustomDatePicker) {
+            SimpleDateRangePickerDialog(
+                onDismiss = { showCustomDatePicker = false },
+                onDateRangeSelected = { range ->
+                    viewModel.updateFilters { it.copy(
+                        period = TransactionPeriod.CUSTOM,
+                        customDateRange = range
+                    ) }
+                }
+            )
+        }
+
+        if (showCategoryFilterSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showCategoryFilterSheet = false },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                shape = BottomSheetShape
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp)
+                        .navigationBarsPadding()
+                ) {
+                    Text(
+                        "Select Category",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(Modifier.height(16.dp))
+
+                    val categoriesFiltered = allCategories.filter { cat ->
+                        when (filterState.selectedTab) {
+                            TransactionTab.EXPENSES -> cat.name != "INCOME" && cat.name != "TRANSFER" && cat.name != "SELF_TRANSFER" && cat.name != "UNCATEGORIZED"
+                            TransactionTab.INCOME -> cat.name == "INCOME"
+                            TransactionTab.SELF_TRANSFER -> cat.name == "SELF_TRANSFER"
+                            TransactionTab.UNCATEGORIZED -> cat.name == "UNCATEGORIZED"
+                            else -> true
+                        }
+                    }
+
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp)
+                    ) {
+                        item {
+                            CategoryGridItem(
+                                category = Category(name = "ANY", displayName = "Any Category", emoji = "🏷️", color = "#000000"),
+                                isSelected = filterState.selectedCategory == null,
+                                onClick = {
+                                    viewModel.setCategory(null)
+                                    showCategoryFilterSheet = false
+                                }
+                            )
+                        }
+                        items(categoriesFiltered) { category ->
+                            CategoryGridItem(
+                                category = category,
+                                isSelected = filterState.selectedCategory?.name == category.name,
+                                onClick = {
+                                    viewModel.setCategory(category)
+                                    showCategoryFilterSheet = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (showAmountFilterSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showAmountFilterSheet = false },
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                shape = BottomSheetShape
+            ) {
+                var minAmountText by remember { mutableStateOf(filterState.minAmount?.toString() ?: "") }
+                var maxAmountText by remember { mutableStateOf(filterState.maxAmount?.toString() ?: "") }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp)
+                        .navigationBarsPadding(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        "Amount Range",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = minAmountText,
+                            onValueChange = { if (it.isEmpty() || it.toDoubleOrNull() != null) minAmountText = it },
+                            label = { Text("Min (₹)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                                focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+                                cursorColor = MaterialTheme.colorScheme.primary,
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            shape = ChipShape
+                        )
+                        OutlinedTextField(
+                            value = maxAmountText,
+                            onValueChange = { if (it.isEmpty() || it.toDoubleOrNull() != null) maxAmountText = it },
+                            label = { Text("Max (₹)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                                focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+                                cursorColor = MaterialTheme.colorScheme.primary,
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            shape = ChipShape
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.updateFilters { it.copy(minAmount = null, maxAmount = null) }
+                                showAmountFilterSheet = false
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = ChipShape
+                        ) {
+                            Text("Clear")
+                        }
+                        Button(
+                            onClick = {
+                                viewModel.updateFilters { it.copy(
+                                    minAmount = minAmountText.toDoubleOrNull(),
+                                    maxAmount = maxAmountText.toDoubleOrNull()
+                                ) }
+                                showAmountFilterSheet = false
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = ChipShape
+                        ) {
+                            Text("Apply")
+                        }
+                    }
+                }
+            }
         }
 
         if (showBulkCategoryPicker) {
@@ -3215,29 +3526,7 @@ private fun AdvancedFilterSheet(
                 }
             }
 
-            // Status Filter
-            Column {
-                Text("TRANSACTION STATUS", style = DotMatrixLabel, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(6.dp))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    item {
-                        FilterChip(
-                            selected = status == null,
-                            onClick = { status = null },
-                            label = { Text("Any") }
-                        )
-                    }
-                    TransactionStatus.entries.forEach { s ->
-                        item {
-                            FilterChip(
-                                selected = status == s,
-                                onClick = { status = s },
-                                label = { Text(s.name.replace("_", " ")) }
-                            )
-                        }
-                    }
-                }
-            }
+
 
             // Payment Method
             Column {
@@ -3440,4 +3729,102 @@ private fun AdvancedFilterSheet(
 private fun getMonthYear(timestamp: Long): String {
     val monthYearFormat = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
     return monthYearFormat.format(Date(timestamp))
+}
+
+@Composable
+fun FilterPill(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: String,
+    icon: (@Composable () -> Unit)? = null,
+    trailingIcon: (@Composable () -> Unit)? = null
+) {
+    Surface(
+        onClick = onClick,
+        shape = ChipShape,
+        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+        ),
+        modifier = Modifier.height(36.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            if (icon != null) {
+                icon()
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium)
+            )
+            if (trailingIcon != null) {
+                trailingIcon()
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SimpleDateRangePickerDialog(
+    onDismiss: () -> Unit,
+    onDateRangeSelected: (Pair<Long, Long>) -> Unit
+) {
+    val dateRangePickerState = rememberDateRangePickerState()
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val start = dateRangePickerState.selectedStartDateMillis
+                    val end = dateRangePickerState.selectedEndDateMillis
+                    if (start != null && end != null) {
+                        onDateRangeSelected(start to end)
+                    }
+                    onDismiss()
+                },
+                enabled = dateRangePickerState.selectedStartDateMillis != null && dateRangePickerState.selectedEndDateMillis != null
+            ) {
+                Text("OK", color = MaterialTheme.colorScheme.primary)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        colors = DatePickerDefaults.colors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Box(modifier = Modifier.height(450.dp)) {
+            DateRangePicker(
+                state = dateRangePickerState,
+                title = { Text("Select Date Range", modifier = Modifier.padding(16.dp)) },
+                showModeToggle = false,
+                colors = DatePickerDefaults.colors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    titleContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    headlineContentColor = MaterialTheme.colorScheme.onSurface,
+                    weekdayContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    subheadContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    dayContentColor = MaterialTheme.colorScheme.onSurface,
+                    selectedDayContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedDayContentColor = MaterialTheme.colorScheme.onPrimary,
+                    todayContentColor = MaterialTheme.colorScheme.primary,
+                    todayDateBorderColor = MaterialTheme.colorScheme.primary,
+                    navigationContentColor = MaterialTheme.colorScheme.onSurface,
+                    yearContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    currentYearContentColor = MaterialTheme.colorScheme.onSurface,
+                    selectedYearContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedYearContentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            )
+        }
+    }
 }

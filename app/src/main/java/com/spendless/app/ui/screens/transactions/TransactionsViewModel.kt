@@ -102,6 +102,30 @@ class TransactionsViewModel @Inject constructor(
                 // Ignore invalid tab name
             }
         }
+
+        savedStateHandle.get<Long>("dateMs")?.let { dateMs ->
+            if (dateMs > 0) {
+                val cal = Calendar.getInstance().apply {
+                    timeInMillis = dateMs
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                val start = cal.timeInMillis
+
+                cal.set(Calendar.HOUR_OF_DAY, 23)
+                cal.set(Calendar.MINUTE, 59)
+                cal.set(Calendar.SECOND, 59)
+                cal.set(Calendar.MILLISECOND, 999)
+                val end = cal.timeInMillis
+
+                _filterState.update { it.copy(
+                    period = TransactionPeriod.CUSTOM,
+                    customDateRange = start to end
+                ) }
+            }
+        }
     }
 
     private val _selectionMode = MutableStateFlow<Set<Long>>(emptySet())

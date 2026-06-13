@@ -40,7 +40,8 @@ import java.util.*
 fun TrackingDialog(
     uiState: DashboardUiState,
     onDismiss: () -> Unit,
-    onPeriodSelected: (String) -> Unit
+    onPeriodSelected: (String) -> Unit,
+    onNavigateToDate: (Long) -> Unit = {}
 ) {
     var currentTab by remember { mutableStateOf("Trend") } // "Trend", "Daily", "Calendar"
     val tabs = listOf("Trend", "Daily", "Calendar")
@@ -182,7 +183,7 @@ fun TrackingDialog(
                             when (tab) {
                                 "Trend" -> TrendView(uiState.trackingData)
                                 "Daily" -> DailyBarView(uiState.trackingData)
-                                "Calendar" -> CalendarView(uiState.trackingData)
+                                "Calendar" -> CalendarView(uiState.trackingData, onNavigateToDate)
                             }
                         }
                     }
@@ -581,7 +582,10 @@ private fun DailyBarView(data: List<AnalyticsEngine.DailyIncomeExpense>) {
 }
 
 @Composable
-private fun CalendarView(data: List<AnalyticsEngine.DailyIncomeExpense>) {
+private fun CalendarView(
+    data: List<AnalyticsEngine.DailyIncomeExpense>,
+    onNavigateToDate: (Long) -> Unit
+) {
     val tempCal = Calendar.getInstance()
     // Group day data by (Year, Month)
     val monthsData = data.groupBy { dayData ->
@@ -664,22 +668,39 @@ private fun CalendarView(data: List<AnalyticsEngine.DailyIncomeExpense>) {
                         daysList.chunked(7).forEach { weekDays ->
                             Row(modifier = Modifier.fillMaxWidth()) {
                                 weekDays.forEach { day ->
+                                    val cellModifier = Modifier
+                                        .weight(1f)
+                                        .height(44.dp)
+                                        .border(
+                                            width = 0.5.dp,
+                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.08f)
+                                        )
+                                        .padding(1.dp)
+
+                                    val clickableModifier = if (day != null) {
+                                        cellModifier
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .clickable {
+                                                val cellCal = Calendar.getInstance().apply {
+                                                    set(Calendar.YEAR, year)
+                                                    set(Calendar.MONTH, month)
+                                                    set(Calendar.DAY_OF_MONTH, day)
+                                                    set(Calendar.HOUR_OF_DAY, 12)
+                                                }
+                                                onNavigateToDate(cellCal.timeInMillis)
+                                            }
+                                    } else {
+                                        cellModifier
+                                    }
+
                                     Box(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .height(44.dp)
-                                            .border(
-                                                width = 0.5.dp,
-                                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.08f)
-                                            )
-                                            .padding(1.dp),
-                                        contentAlignment = Alignment.TopCenter
+                                        modifier = clickableModifier,
+                                        contentAlignment = Alignment.Center
                                     ) {
                                         if (day != null) {
                                             Column(
                                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                                verticalArrangement = Arrangement.SpaceBetween,
-                                                modifier = Modifier.fillMaxHeight()
+                                                verticalArrangement = Arrangement.spacedBy(1.dp)
                                             ) {
                                                 Text(
                                                     text = day.toString(),
