@@ -35,13 +35,46 @@ class AnalyticsEngine @Inject constructor(
         val transactions = transactionDao.getTransactionsByDateRangeList(startMs, endMs)
         val grouped = transactions.groupBy { toDateKey(it.timestamp) }
 
-        return grouped.map { (day, txns) ->
-            DailyIncomeExpense(
-                dateMs = day,
-                income = txns.filter { it.type == TransactionType.CREDIT && it.status == TransactionStatus.APPROVED && it.category.name != "UNCATEGORIZED" && it.category.name != "SELF_TRANSFER" }.sumOf { it.amount },
-                expense = txns.filter { it.type == TransactionType.DEBIT && it.status == TransactionStatus.APPROVED && it.category.includeInAnalytics && it.category.name != "UNCATEGORIZED" && it.category.name != "SELF_TRANSFER" }.sumOf { it.amount }
-            )
-        }.sortedBy { it.dateMs }
+        val startCal = Calendar.getInstance().apply {
+            timeInMillis = startMs
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val endCal = Calendar.getInstance().apply {
+            timeInMillis = endMs
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        val result = mutableListOf<DailyIncomeExpense>()
+        val currentCal = startCal.clone() as Calendar
+        while (!currentCal.after(endCal)) {
+            val dayMs = currentCal.timeInMillis
+            val txns = grouped[dayMs]
+            if (txns != null) {
+                result.add(
+                    DailyIncomeExpense(
+                        dateMs = dayMs,
+                        income = txns.filter { it.type == TransactionType.CREDIT && it.status == TransactionStatus.APPROVED && it.category.name != "UNCATEGORIZED" && it.category.name != "SELF_TRANSFER" }.sumOf { it.amount },
+                        expense = txns.filter { it.type == TransactionType.DEBIT && it.status == TransactionStatus.APPROVED && it.category.includeInAnalytics && it.category.name != "UNCATEGORIZED" && it.category.name != "SELF_TRANSFER" }.sumOf { it.amount }
+                    )
+                )
+            } else {
+                result.add(
+                    DailyIncomeExpense(
+                        dateMs = dayMs,
+                        income = 0.0,
+                        expense = 0.0
+                    )
+                )
+            }
+            currentCal.add(Calendar.DAY_OF_MONTH, 1)
+        }
+        return result
     }
 
     /**

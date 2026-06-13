@@ -21,6 +21,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -277,6 +279,9 @@ private fun TrendView(data: List<AnalyticsEngine.DailyIncomeExpense>) {
         dayData.dateMs to (cumulativeExpense to cumulativeIncome)
     }
 
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -292,12 +297,12 @@ private fun TrendView(data: List<AnalyticsEngine.DailyIncomeExpense>) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.size(10.dp, 3.dp).background(Color(0xFFFF3B30), RoundedCornerShape(1.dp)))
                 Spacer(Modifier.width(6.dp))
-                Text("Expenses", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Expenses", style = MaterialTheme.typography.labelSmall, color = labelColor)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.size(10.dp, 3.dp).background(Color(0xFF34C759), RoundedCornerShape(1.dp)))
                 Spacer(Modifier.width(6.dp))
-                Text("Income", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Income", style = MaterialTheme.typography.labelSmall, color = labelColor)
             }
         }
 
@@ -309,25 +314,59 @@ private fun TrendView(data: List<AnalyticsEngine.DailyIncomeExpense>) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val w = size.width
                 val h = size.height
-                val paddingX = 20f
-                val paddingY = 30f
+                val paddingLeft = 100f
+                val paddingRight = 30f
+                val paddingTop = 20f
+                val paddingBottom = 60f
+
+                val graphWidth = w - paddingLeft - paddingRight
+                val graphHeight = h - paddingTop - paddingBottom
                 
-                // Draw gridlines
                 val gridStroke = 1.dp.toPx()
-                for (i in 0..4) {
-                    val y = paddingY + i * (h - 2 * paddingY) / 4
-                    drawLine(
-                        color = Color.White.copy(alpha = 0.08f),
-                        start = Offset(paddingX, y),
-                        end = Offset(w - paddingX, y),
-                        strokeWidth = gridStroke
-                    )
+                
+                // Y-Axis Labels Paint
+                val textPaint = android.graphics.Paint().apply {
+                    color = labelColor.toArgb()
+                    textSize = 8.sp.toPx()
+                    textAlign = android.graphics.Paint.Align.RIGHT
+                    typeface = android.graphics.Typeface.DEFAULT
+                }
+                
+                // X-Axis Labels Paint
+                val xLabelPaint = android.graphics.Paint().apply {
+                    color = labelColor.toArgb()
+                    textSize = 8.sp.toPx()
+                    textAlign = android.graphics.Paint.Align.CENTER
+                    typeface = android.graphics.Typeface.DEFAULT
                 }
 
+                val trendDateFormat = SimpleDateFormat("d MMM", Locale.getDefault())
+                val textHeightOffset = -(textPaint.ascent() + textPaint.descent()) / 2
+
                 if (points.isNotEmpty()) {
-                    val xStep = (w - 2 * paddingX) / (points.size - 1).coerceAtLeast(1)
                     val maxAmount = points.maxOf { maxOf(it.second.first, it.second.second) }.coerceAtLeast(1.0)
                     
+                    // Draw horizontal gridlines and Y-axis scale labels
+                    for (i in 0..4) {
+                        val y = paddingTop + i * graphHeight / 4
+                        drawLine(
+                            color = gridColor,
+                            start = Offset(paddingLeft, y),
+                            end = Offset(w - paddingRight, y),
+                            strokeWidth = gridStroke
+                        )
+                        
+                        val value = maxAmount * (4 - i) / 4
+                        val label = "₹${formatCompact(value)}"
+                        drawContext.canvas.nativeCanvas.drawText(
+                            label,
+                            paddingLeft - 15f,
+                            y + textHeightOffset,
+                            textPaint
+                        )
+                    }
+
+                    val xStep = graphWidth / (points.size - 1).coerceAtLeast(1)
                     val expensePath = Path()
                     val incomePath = Path()
                     val expenseFillPath = Path()
@@ -335,18 +374,18 @@ private fun TrendView(data: List<AnalyticsEngine.DailyIncomeExpense>) {
                     
                     points.forEachIndexed { index, (_, values) ->
                         val (exp, inc) = values
-                        val x = paddingX + index * xStep
-                        val yExp = h - paddingY - (exp / maxAmount).toFloat() * (h - 2 * paddingY)
-                        val yInc = h - paddingY - (inc / maxAmount).toFloat() * (h - 2 * paddingY)
+                        val x = paddingLeft + index * xStep
+                        val yExp = paddingTop + graphHeight - (exp / maxAmount).toFloat() * graphHeight
+                        val yInc = paddingTop + graphHeight - (inc / maxAmount).toFloat() * graphHeight
                         
                         if (index == 0) {
                             expensePath.moveTo(x, yExp)
                             incomePath.moveTo(x, yInc)
                             
-                            expenseFillPath.moveTo(x, h - paddingY)
+                            expenseFillPath.moveTo(x, paddingTop + graphHeight)
                             expenseFillPath.lineTo(x, yExp)
                             
-                            incomeFillPath.moveTo(x, h - paddingY)
+                            incomeFillPath.moveTo(x, paddingTop + graphHeight)
                             incomeFillPath.lineTo(x, yInc)
                         } else {
                             expensePath.lineTo(x, yExp)
@@ -357,10 +396,10 @@ private fun TrendView(data: List<AnalyticsEngine.DailyIncomeExpense>) {
                         }
                         
                         if (index == points.lastIndex) {
-                            expenseFillPath.lineTo(x, h - paddingY)
+                            expenseFillPath.lineTo(x, paddingTop + graphHeight)
                             expenseFillPath.close()
                             
-                            incomeFillPath.lineTo(x, h - paddingY)
+                            incomeFillPath.lineTo(x, paddingTop + graphHeight)
                             incomeFillPath.close()
                         }
                     }
@@ -370,22 +409,42 @@ private fun TrendView(data: List<AnalyticsEngine.DailyIncomeExpense>) {
                         path = expenseFillPath,
                         brush = Brush.verticalGradient(
                             colors = listOf(Color(0xFFFF3B30).copy(alpha = 0.12f), Color.Transparent),
-                            startY = paddingY,
-                            endY = h - paddingY
+                            startY = paddingTop,
+                            endY = paddingTop + graphHeight
                         )
                     )
                     drawPath(
                         path = incomeFillPath,
                         brush = Brush.verticalGradient(
                             colors = listOf(Color(0xFF34C759).copy(alpha = 0.12f), Color.Transparent),
-                            startY = paddingY,
-                            endY = h - paddingY
+                            startY = paddingTop,
+                            endY = paddingTop + graphHeight
                         )
                     )
                     
                     // Draw lines
                     drawPath(path = expensePath, color = Color(0xFFFF3B30), style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
                     drawPath(path = incomePath, color = Color(0xFF34C759), style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
+
+                    // Draw X-axis labels at Start, Mid, and End
+                    val labelIndices = if (points.size >= 3) {
+                        listOf(0, points.size / 2, points.size - 1)
+                    } else {
+                        points.indices.toList()
+                    }
+                    
+                    labelIndices.forEach { index ->
+                        val (dateMs, _) = points[index]
+                        val x = paddingLeft + index * xStep
+                        val label = trendDateFormat.format(Date(dateMs))
+                        
+                        drawContext.canvas.nativeCanvas.drawText(
+                            label,
+                            x,
+                            paddingTop + graphHeight + 35f,
+                            xLabelPaint
+                        )
+                    }
                 }
             }
         }
@@ -395,6 +454,8 @@ private fun TrendView(data: List<AnalyticsEngine.DailyIncomeExpense>) {
 @Composable
 private fun DailyBarView(data: List<AnalyticsEngine.DailyIncomeExpense>) {
     val sortedData = data.sortedBy { it.dateMs }
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.15f)
 
     Canvas(
         modifier = Modifier
@@ -403,39 +464,115 @@ private fun DailyBarView(data: List<AnalyticsEngine.DailyIncomeExpense>) {
     ) {
         val w = size.width
         val h = size.height
-        val paddingX = 20f
-        val paddingY = 30f
+        val paddingLeft = 100f
+        val paddingRight = 30f
+        val paddingTop = 20f
+        val paddingBottom = 60f
+
+        val graphWidth = w - paddingLeft - paddingRight
+        val graphHeight = h - paddingTop - paddingBottom
         
-        // Draw horizontal gridlines
         val gridStroke = 1.dp.toPx()
-        for (i in 0..4) {
-            val y = paddingY + i * (h - 2 * paddingY) / 4
-            drawLine(
-                color = Color.White.copy(alpha = 0.08f),
-                start = Offset(paddingX, y),
-                end = Offset(w - paddingX, y),
-                strokeWidth = gridStroke
-            )
+        
+        // Y-Axis Labels Paint
+        val textPaint = android.graphics.Paint().apply {
+            color = labelColor.toArgb()
+            textSize = 8.sp.toPx()
+            textAlign = android.graphics.Paint.Align.RIGHT
+            typeface = android.graphics.Typeface.DEFAULT
+        }
+        
+        // X-Axis Labels Paint
+        val xLabelPaint = android.graphics.Paint().apply {
+            color = labelColor.toArgb()
+            textSize = 8.sp.toPx()
+            textAlign = android.graphics.Paint.Align.CENTER
+            typeface = android.graphics.Typeface.DEFAULT
         }
 
+        val textHeightOffset = -(textPaint.ascent() + textPaint.descent()) / 2
+
         if (sortedData.isNotEmpty()) {
-            val barCount = sortedData.size
-            val xStep = (w - 2 * paddingX) / barCount
             val maxExpense = sortedData.maxOf { it.expense }.coerceAtLeast(1.0)
+            
+            // Draw horizontal gridlines and Y-axis scale labels
+            for (i in 0..4) {
+                val y = paddingTop + i * graphHeight / 4
+                drawLine(
+                    color = gridColor,
+                    start = Offset(paddingLeft, y),
+                    end = Offset(w - paddingRight, y),
+                    strokeWidth = gridStroke
+                )
+                
+                val value = maxExpense * (4 - i) / 4
+                val label = "₹${formatCompact(value)}"
+                drawContext.canvas.nativeCanvas.drawText(
+                    label,
+                    paddingLeft - 15f,
+                    y + textHeightOffset,
+                    textPaint
+                )
+            }
+
+            // Draw baseline (X-axis line)
+            drawLine(
+                color = labelColor.copy(alpha = 0.25f),
+                start = Offset(paddingLeft, paddingTop + graphHeight),
+                end = Offset(w - paddingRight, paddingTop + graphHeight),
+                strokeWidth = 1.dp.toPx()
+            )
+
+            val barCount = sortedData.size
+            val xStep = graphWidth / barCount
             val barWidth = (xStep * 0.6f).coerceAtLeast(4f)
             
+            val dailyDateFormat = SimpleDateFormat("d", Locale.getDefault())
+            
+            // Determine label step to avoid overlapping on small screen sizes/large counts
+            val labelInterval = when {
+                xStep >= 20.dp.toPx() -> 1
+                xStep >= 10.dp.toPx() -> 2
+                else -> 5
+            }
+            
+            val labelTextSize = if (barCount > 15) 7.5.sp else 8.5.sp
+            xLabelPaint.textSize = labelTextSize.toPx()
+
             sortedData.forEachIndexed { index, dayData ->
                 val exp = dayData.expense
-                val x = paddingX + index * xStep + (xStep - barWidth) / 2
-                val barHeight = (exp / maxExpense).toFloat() * (h - 2 * paddingY)
-                val y = h - paddingY - barHeight
+                val xCenter = paddingLeft + index * xStep + xStep / 2
+                
+                // Draw a small tick on baseline
+                drawLine(
+                    color = labelColor.copy(alpha = 0.2f),
+                    start = Offset(xCenter, paddingTop + graphHeight),
+                    end = Offset(xCenter, paddingTop + graphHeight + 6f),
+                    strokeWidth = 1.dp.toPx()
+                )
+                
+                // Draw bar if expense > 0
+                val barHeight = (exp / maxExpense).toFloat() * graphHeight
+                val y = paddingTop + graphHeight - barHeight
+                val xBarLeft = xCenter - barWidth / 2
                 
                 if (exp > 0) {
                     drawRoundRect(
                         color = Color(0xFFFF3B30),
-                        topLeft = Offset(x, y),
+                        topLeft = Offset(xBarLeft, y),
                         size = Size(barWidth, barHeight),
                         cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
+                    )
+                }
+                
+                // Draw X-axis label (day of month) for chosen intervals
+                if (index % labelInterval == 0) {
+                    val dayStr = dailyDateFormat.format(Date(dayData.dateMs))
+                    drawContext.canvas.nativeCanvas.drawText(
+                        dayStr,
+                        xCenter,
+                        paddingTop + graphHeight + 30f,
+                        xLabelPaint
                     )
                 }
             }
