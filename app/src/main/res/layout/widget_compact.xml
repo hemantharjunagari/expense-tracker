@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="@drawable/widget_background"
+    android:gravity="center">
+
+    <TextView
+        android:id="@+id/compact_remaining"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="₹0"
+        android:textColor="#FFFFFF"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:fontFamily="@font/space_mono_bold" />
+
+    <TextView
+        android:id="@+id/compact_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="REMAINING"
+        android:textColor="#606060"
+        android:textSize="9sp"
+        android:letterSpacing="0.15"
+        android:fontFamily="@font/space_mono_regular" />
+
+    <ProgressBar
+        android:id="@+id/compact_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:layout_marginTop="10dp"
+        android:progress="0"
+        android:max="100"
+        android:progressTint="#FF3E3E"
+        android:progressBackgroundTint="#1A1A1A" />
+
+</LinearLayout>

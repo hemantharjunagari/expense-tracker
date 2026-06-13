@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/widget_background"
+    android:gravity="center">
+
+    <TextView
+        android:id="@+id/widget_app_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="SPENDLESS"
+        android:textColor="#808080"
+        android:textSize="9sp"
+        android:letterSpacing="0.2"
+        android:fontFamily="@font/space_mono_regular" />
+
+    <TextView
+        android:id="@+id/widget_spent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="₹0"
+        android:textColor="#FFFFFF"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:fontFamily="@font/space_mono_bold"
+        android:layout_marginTop="8dp" />
+
+    <TextView
+        android:id="@+id/widget_budget_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="of ₹10,000 budget"
+        android:textColor="#606060"
+        android:textSize="11sp"
+        android:fontFamily="@font/space_grotesk_regular" />
+
+    <ProgressBar
+        android:id="@+id/widget_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:layout_marginTop="12dp"
+        android:progress="0"
+        android:max="100"
+        android:progressTint="#FF3E3E"
+        android:progressBackgroundTint="#1A1A1A" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp">
+
+        <TextView
+            android:id="@+id/widget_percent"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="0% used"
+            android:textColor="#606060"
+            android:textSize="11sp"
+            android:fontFamily="@font/space_mono_regular" />
+
+        <TextView
+            android:id="@+id/widget_remaining"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="₹10,000 left"
+            android:textColor="#AAAAAA"
+            android:textSize="11sp"
+            android:fontFamily="@font/space_mono_regular" />
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/widget_background"
+    android:gravity="center_vertical">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="LENT &amp; BORROWED"
+        android:textColor="#606060"
+        android:textSize="9sp"
+        android:letterSpacing="0.2"
+        android:fontFamily="@font/space_mono_regular" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="10dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/lend_widget_receivable_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="RECEIVABLE"
+                android:textColor="#505050"
+                android:textSize="8sp"
+                android:fontFamily="@font/space_mono_regular" />
+
+            <TextView
+                android:id="@+id/lend_widget_receivable"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="₹0"
+                android:textColor="#FFFFFF"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:fontFamily="@font/space_mono_bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/lend_widget_overdue_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="OVERDUE"
+                android:textColor="#505050"
+                android:textSize="8sp"
+                android:fontFamily="@font/space_mono_regular" />
+
+            <TextView
+                android:id="@+id/lend_widget_overdue"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="₹0"
+                android:textColor="#909090"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:fontFamily="@font/space_mono_bold" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/lend_widget_next_due"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="No upcoming dues"
+        android:textColor="#606060"
+        android:textSize="10sp"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:fontFamily="@font/space_grotesk_regular" />
+
+</LinearLayout>

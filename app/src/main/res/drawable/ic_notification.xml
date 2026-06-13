@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Notification icon: small white rupee symbol for status bar -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M11.5,2L7,2v2h4.5C12.88,4 14,5.12 14,6.5S12.88,9 11.5,9H7v2h4.5l4,6H13l-4,-6H7v2h2l4,6H9.5L7,15v4h2v-2.5l2,3h3l-4,-5.9C11.75,14.03 16,12.52 16,9 16,5.14 14.14,2 11.5,2z"/>
+</vector>
