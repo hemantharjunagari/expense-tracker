@@ -32,6 +32,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import com.spendless.app.ui.components.*
 import com.spendless.app.ui.theme.*
 import java.text.SimpleDateFormat
@@ -107,36 +109,70 @@ fun TransactionsScreen(
                         IconButton(onClick = onNavigateBack) {
                             Icon(Icons.Outlined.ArrowBack, null, tint = MaterialTheme.colorScheme.onBackground)
                         }
-                        Text(
-                            "Transactions",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                        
-                        SortSelector(
-                            selectedSort = filterState.sortBy,
-                            onSortSelected = viewModel::setSortBy
-                        )
+                        if (isSearchExpanded) {
+                            OutlinedTextField(
+                                value = filterState.searchQuery,
+                                onValueChange = viewModel::setSearchQuery,
+                                placeholder = { Text("Search transactions...", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                                leadingIcon = {
+                                    Icon(Icons.Outlined.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                },
+                                trailingIcon = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        if (filterState.searchQuery.isNotBlank()) {
+                                            IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                                                Icon(Icons.Outlined.Close, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            }
+                                        }
+                                        IconButton(onClick = { isSearchExpanded = false }) {
+                                            Icon(Icons.Outlined.ArrowBack, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    }
+                                },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+                                    cursorColor = MaterialTheme.colorScheme.primary,
+                                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                                ),
+                                shape = ChipShape
+                            )
+                        } else {
+                            Text(
+                                "Transactions",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
 
-                        if (filterState.searchQuery.isNotBlank() || 
-                            filterState.selectedCategory != null ||
-                            filterState.minAmount != null ||
-                            filterState.maxAmount != null ||
-                            filterState.status != null ||
-                            filterState.paymentMethod != null ||
-                            filterState.isManual != null ||
-                            filterState.isExcludedFromBudget != null ||
-                            filterState.isExcludedFromAnalytics != null ||
-                            filterState.contactName != null ||
-                            filterState.selectedMerchant != null ||
-                            filterState.period != TransactionPeriod.CURRENT_CYCLE
-                        ) {
-                            TextButton(onClick = {
-                                viewModel.clearFilters()
-                                viewModel.setPeriod(TransactionPeriod.CURRENT_CYCLE)
-                            }) {
-                                Text("Clear", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            IconButton(onClick = { isSearchExpanded = true }) {
+                                Icon(Icons.Outlined.Search, null, tint = MaterialTheme.colorScheme.onBackground)
+                            }
+
+                            if (filterState.searchQuery.isNotBlank() || 
+                                filterState.selectedCategories.isNotEmpty() ||
+                                filterState.minAmount != null ||
+                                filterState.maxAmount != null ||
+                                filterState.status != null ||
+                                filterState.paymentMethod != null ||
+                                filterState.isManual != null ||
+                                filterState.isExcludedFromBudget != null ||
+                                filterState.isExcludedFromAnalytics != null ||
+                                filterState.contactName != null ||
+                                filterState.selectedMerchant != null ||
+                                filterState.period != TransactionPeriod.CURRENT_CYCLE
+                            ) {
+                                TextButton(onClick = {
+                                    viewModel.clearFilters()
+                                    viewModel.setPeriod(TransactionPeriod.CURRENT_CYCLE)
+                                }) {
+                                    Text("Clear", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
                             }
                         }
                     }
@@ -209,208 +245,184 @@ fun TransactionsScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Consolidated Zomato/Amazon style search and filters pill row
-                if (isSearchExpanded) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedTextField(
-                            value = filterState.searchQuery,
-                            onValueChange = viewModel::setSearchQuery,
-                            placeholder = { Text("Search merchants, notes...", color = MaterialTheme.colorScheme.onSurfaceVariant) },
-                            leadingIcon = {
-                                Icon(Icons.Outlined.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            },
-                            trailingIcon = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    if (filterState.searchQuery.isNotBlank()) {
-                                        IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                                            Icon(Icons.Outlined.Close, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        }
-                                    }
-                                    IconButton(onClick = { isSearchExpanded = false }) {
-                                        Icon(Icons.Outlined.ArrowBack, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
+                // Consolidated Zomato/Amazon style filter pebbles (Sort, Date Range, Category, Amount)
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // 1. Sort Pill
+                    item {
+                        var showSortMenu by remember { mutableStateOf(false) }
+                        Box {
+                            FilterPill(
+                                selected = filterState.sortBy != SortBy.NEWEST,
+                                onClick = { showSortMenu = true },
+                                label = "Sort: ${filterState.sortBy.name.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }}",
+                                icon = {
+                                    Icon(
+                                        Icons.Outlined.Sort,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
                                 }
-                            },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                                focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                                unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
-                                cursorColor = MaterialTheme.colorScheme.primary,
-                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                            ),
-                            shape = ChipShape
+                            )
+                            DropdownMenu(
+                                expanded = showSortMenu,
+                                onDismissRequest = { showSortMenu = false },
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                SortBy.entries.forEach { sort ->
+                                    DropdownMenuItem(
+                                        text = { 
+                                            Text(
+                                                sort.name.replace("_", " ").lowercase()
+                                                    .replaceFirstChar { it.uppercase() }
+                                            ) 
+                                        },
+                                        leadingIcon = {
+                                            if (filterState.sortBy == sort) {
+                                                Icon(Icons.Outlined.Check, null, modifier = Modifier.size(18.dp))
+                                            }
+                                        },
+                                        onClick = {
+                                            viewModel.setSortBy(sort)
+                                            showSortMenu = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // 2. Date Range Pill
+                    item {
+                        val isPeriodActive = filterState.period != TransactionPeriod.CURRENT_CYCLE
+                        val periodLabel = filterState.period.name.replace("_", " ").lowercase()
+                            .replaceFirstChar { it.uppercase() }
+                        FilterPill(
+                            selected = isPeriodActive,
+                            onClick = { showPeriodSheet = true },
+                            label = periodLabel,
+                            icon = {
+                                Icon(
+                                    Icons.Outlined.DateRange,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         )
                     }
-                } else {
-                    val hasActiveAdvancedFilters = filterState.minAmount != null || 
-                        filterState.maxAmount != null || 
-                        filterState.status != null || 
-                        filterState.paymentMethod != null || 
-                        filterState.isManual != null || 
-                        filterState.isExcludedFromBudget != null || 
-                        filterState.isExcludedFromAnalytics != null || 
-                        filterState.contactName != null || 
-                        filterState.selectedMerchant != null
 
-                    val isSearchActive = filterState.searchQuery.isNotEmpty()
-                    val searchLabel = if (isSearchActive) "Search: \"${filterState.searchQuery}\"" else "Search"
-
-                    val isPeriodActive = filterState.period != TransactionPeriod.CURRENT_CYCLE
-                    val periodLabel = filterState.period.name.replace("_", " ").lowercase()
-                        .replaceFirstChar { it.uppercase() }
-
-                    val isCategoryActive = filterState.selectedCategory != null
-                    val categoryLabel = filterState.selectedCategory?.let { "${it.emoji} ${it.displayName}" } ?: "Category: All"
-
-                    val minAmount = filterState.minAmount
-                    val maxAmount = filterState.maxAmount
-                    val isAmountActive = minAmount != null || maxAmount != null
-                    val amountLabel = when {
-                        minAmount != null && maxAmount != null -> "Amount: ₹${minAmount.toInt()} - ₹${maxAmount.toInt()}"
-                        minAmount != null -> "Amount: >₹${minAmount.toInt()}"
-                        maxAmount != null -> "Amount: <₹${maxAmount.toInt()}"
-                        else -> "Amount: Any"
+                    // 3. Category Pill (Multi-Select!)
+                    item {
+                        val isCategoryActive = filterState.selectedCategories.isNotEmpty()
+                        val categoryLabel = when {
+                            filterState.selectedCategories.isEmpty() -> "Category: All"
+                            filterState.selectedCategories.size == 1 -> "${filterState.selectedCategories[0].emoji} ${filterState.selectedCategories[0].displayName}"
+                            else -> "Categories (${filterState.selectedCategories.size})"
+                        }
+                        FilterPill(
+                            selected = isCategoryActive,
+                            onClick = { showCategoryFilterSheet = true },
+                            label = categoryLabel,
+                            icon = {
+                                Icon(
+                                    Icons.Outlined.Label,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        )
                     }
 
-                    val isBudgetActive = filterState.isExcludedFromBudget != null
-                    val budgetLabel = when (filterState.isExcludedFromBudget) {
-                        null -> "Budget: Either"
-                        false -> "Budget: Included"
-                        true -> "Budget: Excluded"
+                    // 4. Amount Range Pill
+                    item {
+                        val minAmount = filterState.minAmount
+                        val maxAmount = filterState.maxAmount
+                        val isAmountActive = minAmount != null || maxAmount != null
+                        val amountLabel = when {
+                            minAmount != null && maxAmount != null -> "Amount: ₹${minAmount.toInt()} - ₹${maxAmount.toInt()}"
+                            minAmount != null -> "Amount: >₹${minAmount.toInt()}"
+                            maxAmount != null -> "Amount: <₹${maxAmount.toInt()}"
+                            else -> "Amount: Any"
+                        }
+                        FilterPill(
+                            selected = isAmountActive,
+                            onClick = { showAmountFilterSheet = true },
+                            label = amountLabel,
+                            icon = {
+                                Icon(
+                                    Icons.Outlined.Payments,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        )
                     }
 
-                    val isAnalyticsActive = filterState.isExcludedFromAnalytics != null
-                    val analyticsLabel = when (filterState.isExcludedFromAnalytics) {
-                        null -> "Analytics: Either"
-                        false -> "Analytics: Included"
-                        true -> "Analytics: Excluded"
+                    // 5. In Budget Pill
+                    item {
+                        val isExcludedFromBudget = filterState.isExcludedFromBudget
+                        val isBudgetActive = isExcludedFromBudget != null
+                        val budgetLabel = when (isExcludedFromBudget) {
+                            null -> "Budget: Any"
+                            false -> "In Budget"
+                            true -> "Budget Excluded"
+                        }
+                        FilterPill(
+                            selected = isBudgetActive,
+                            onClick = {
+                                viewModel.updateFilters {
+                                    val nextVal = when (it.isExcludedFromBudget) {
+                                        null -> false
+                                        false -> true
+                                        true -> null
+                                    }
+                                    it.copy(isExcludedFromBudget = nextVal)
+                                }
+                            },
+                            label = budgetLabel,
+                            icon = {
+                                Icon(
+                                    Icons.Outlined.Wallet,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        )
                     }
 
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        // 1. Advanced Filters Pill
-                        item {
-                            FilterPill(
-                                selected = hasActiveAdvancedFilters,
-                                onClick = { showFilterSheet = true },
-                                label = "Filters",
-                                icon = {
-                                    Icon(
-                                        Icons.Outlined.FilterList,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                    // 6. In Analytics Pill
+                    item {
+                        val isExcludedFromAnalytics = filterState.isExcludedFromAnalytics
+                        val isAnalyticsActive = isExcludedFromAnalytics != null
+                        val analyticsLabel = when (isExcludedFromAnalytics) {
+                            null -> "Analytics: Any"
+                            false -> "In Analytics"
+                            true -> "Analytics Excluded"
+                        }
+                        FilterPill(
+                            selected = isAnalyticsActive,
+                            onClick = {
+                                viewModel.updateFilters {
+                                    val nextVal = when (it.isExcludedFromAnalytics) {
+                                        null -> false
+                                        false -> true
+                                        true -> null
+                                    }
+                                    it.copy(isExcludedFromAnalytics = nextVal)
                                 }
-                            )
-                        }
-
-                        // 2. Search Pill
-                        item {
-                            FilterPill(
-                                selected = isSearchActive,
-                                onClick = { isSearchExpanded = true },
-                                label = searchLabel,
-                                icon = {
-                                    Icon(
-                                        Icons.Outlined.Search,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            )
-                        }
-
-                        // 3. Date Range Pill
-                        item {
-                            FilterPill(
-                                selected = isPeriodActive,
-                                onClick = { showPeriodSheet = true },
-                                label = periodLabel,
-                                icon = {
-                                    Icon(
-                                        Icons.Outlined.DateRange,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            )
-                        }
-
-                        // 4. Category Pill
-                        item {
-                            FilterPill(
-                                selected = isCategoryActive,
-                                onClick = { showCategoryFilterSheet = true },
-                                label = categoryLabel,
-                                icon = {
-                                    Icon(
-                                        Icons.Outlined.Label,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            )
-                        }
-
-                        // 5. Amount Pill
-                        item {
-                            FilterPill(
-                                selected = isAmountActive,
-                                onClick = { showAmountFilterSheet = true },
-                                label = amountLabel,
-                                icon = {
-                                    Icon(
-                                        Icons.Outlined.Payments,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            )
-                        }
-
-                        // 6. In Budget Pill
-                        item {
-                            FilterPill(
-                                selected = isBudgetActive,
-                                onClick = {
-                                    viewModel.updateFilters { it.copy(
-                                        isExcludedFromBudget = when (it.isExcludedFromBudget) {
-                                            null -> false
-                                            false -> true
-                                            true -> null
-                                        }
-                                    ) }
-                                },
-                                label = budgetLabel
-                            )
-                        }
-
-                        // 7. In Analytics Pill
-                        item {
-                            FilterPill(
-                                selected = isAnalyticsActive,
-                                onClick = {
-                                    viewModel.updateFilters { it.copy(
-                                        isExcludedFromAnalytics = when (it.isExcludedFromAnalytics) {
-                                            null -> false
-                                            false -> true
-                                            true -> null
-                                        }
-                                    ) }
-                                },
-                                label = analyticsLabel
-                            )
-                        }
+                            },
+                            label = analyticsLabel,
+                            icon = {
+                                Icon(
+                                    Icons.Outlined.BarChart,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        )
                     }
                 }
 
@@ -588,19 +600,7 @@ fun TransactionsScreen(
             )
         }
 
-        if (showFilterSheet) {
-            AdvancedFilterSheet(
-                filterState = filterState,
-                allCategories = allCategories,
-                onDismiss = { showFilterSheet = false },
-                onApplyFilters = { newFilters ->
-                    viewModel.updateFilters { newFilters }
-                },
-                onResetFilters = {
-                    viewModel.clearFilters()
-                }
-            )
-        }
+
 
         if (showPeriodSheet) {
             ModalBottomSheet(
@@ -687,11 +687,20 @@ fun TransactionsScreen(
                         .padding(24.dp)
                         .navigationBarsPadding()
                 ) {
-                    Text(
-                        "Select Category",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Select Categories",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        TextButton(onClick = { viewModel.clearCategories() }) {
+                            Text("Clear All", color = MaterialTheme.colorScheme.error)
+                        }
+                    }
                     Spacer(Modifier.height(16.dp))
 
                     val categoriesFiltered = allCategories.filter { cat ->
@@ -708,28 +717,30 @@ fun TransactionsScreen(
                         columns = GridCells.Fixed(3),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false)
                     ) {
-                        item {
-                            CategoryGridItem(
-                                category = Category(name = "ANY", displayName = "Any Category", emoji = "🏷️", color = "#000000"),
-                                isSelected = filterState.selectedCategory == null,
-                                onClick = {
-                                    viewModel.setCategory(null)
-                                    showCategoryFilterSheet = false
-                                }
-                            )
-                        }
                         items(categoriesFiltered) { category ->
+                            val isSelected = filterState.selectedCategories.any { it.name == category.name }
                             CategoryGridItem(
                                 category = category,
-                                isSelected = filterState.selectedCategory?.name == category.name,
+                                isSelected = isSelected,
                                 onClick = {
-                                    viewModel.setCategory(category)
-                                    showCategoryFilterSheet = false
+                                    viewModel.toggleCategory(category)
                                 }
                             )
                         }
+                    }
+                    
+                    Spacer(Modifier.height(16.dp))
+                    
+                    Button(
+                        onClick = { showCategoryFilterSheet = false },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = ChipShape
+                    ) {
+                        Text("Done")
                     }
                 }
             }
@@ -1730,7 +1741,7 @@ private fun AddTransactionSheet(
                 }
 
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(4),
+                    columns = GridCells.Fixed(3),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp)
@@ -1738,65 +1749,55 @@ private fun AddTransactionSheet(
                     items(categories.size + 1) { idx ->
                         if (idx < categories.size) {
                             val category = categories[idx]
-                            FilterChip(
-                                selected = selectedCategory == category,
+                            CategoryGridItem(
+                                category = category,
+                                isSelected = selectedCategory == category,
                                 onClick = {
                                     selectedCategory = category
                                     showCategoryPicker = false
-                                },
-                                label = {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                                    ) {
-                                        Text(category.emoji, fontSize = 20.sp)
-                                        Spacer(Modifier.height(2.dp))
-                                        Text(
-                                            category.displayName,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            maxLines = 1
-                                        )
-                                    }
-                                },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                                    containerColor = MaterialTheme.colorScheme.surface,
-                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                }
                             )
                         } else {
-                            FilterChip(
-                                selected = false,
-                                onClick = {
-                                    showCategoryPicker = false
-                                    newCatName = ""
-                                    newCatEmoji = "🛍️"
-                                    newCatColor = "#FF9800"
-                                    newCatParent = null
-                                    newCatBudgetEnabled = true
-                                    newCatAnalyticsEnabled = true
-                                    showCreateCategory = true
-                                },
-                                label = {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                                    ) {
-                                        Text("➕", fontSize = 20.sp)
-                                        Spacer(Modifier.height(2.dp))
-                                        Text(
-                                            "+ New",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            maxLines = 1
-                                        )
-                                    }
-                                },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    containerColor = MaterialTheme.colorScheme.surface,
-                                    labelColor = MaterialTheme.colorScheme.primary
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(4.dp)
+                                    .clickable {
+                                        showCategoryPicker = false
+                                        newCatName = ""
+                                        newCatEmoji = "🛍️"
+                                        newCatColor = "#FF9800"
+                                        newCatParent = null
+                                        newCatBudgetEnabled = true
+                                        newCatAnalyticsEnabled = true
+                                        showCreateCategory = true
+                                    },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surface
+                                ),
+                                border = BorderStroke(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.outlineVariant
                                 )
-                            )
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Text("➕", fontSize = 24.sp)
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        text = "+ New",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        maxLines = 1,
+                                        textAlign = TextAlign.Center,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -2733,7 +2734,7 @@ private fun TransactionDetailsDialog(
                 }
 
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(4),
+                    columns = GridCells.Fixed(3),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.heightIn(max = 280.dp)
@@ -2741,8 +2742,9 @@ private fun TransactionDetailsDialog(
                     items(categories.size + 1) { idx ->
                         if (idx < categories.size) {
                             val cat = categories[idx]
-                            FilterChip(
-                                selected = draftTxn.category.name == cat.name,
+                            CategoryGridItem(
+                                category = cat,
+                                isSelected = draftTxn.category.name == cat.name,
                                 onClick = {
                                     val newType = when (cat.name) {
                                         "LENT" -> TransactionType.LENT
@@ -2770,60 +2772,49 @@ private fun TransactionDetailsDialog(
                                         isExcludedFromAnalytics = !cat.includeInAnalytics || newType == TransactionType.LENT || newType == TransactionType.BORROWED
                                     )
                                     showCategoryPicker = false
-                                },
-                                label = {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                                    ) {
-                                        Text(cat.emoji, fontSize = 20.sp)
-                                        Spacer(Modifier.height(2.dp))
-                                        Text(
-                                            cat.displayName,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            maxLines = 1
-                                        )
-                                    }
-                                },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                                    containerColor = MaterialTheme.colorScheme.surface,
-                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                }
                             )
                         } else {
-                            FilterChip(
-                                selected = false,
-                                onClick = {
-                                    showCategoryPicker = false
-                                    newCatName = ""
-                                    newCatEmoji = "🛍️"
-                                    newCatColor = "#FF9800"
-                                    newCatParent = null
-                                    newCatBudgetEnabled = true
-                                    newCatAnalyticsEnabled = true
-                                    showCreateCategory = true
-                                },
-                                label = {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                                    ) {
-                                        Text("➕", fontSize = 20.sp)
-                                        Spacer(Modifier.height(2.dp))
-                                        Text(
-                                            "+ New",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            maxLines = 1
-                                        )
-                                    }
-                                },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    containerColor = MaterialTheme.colorScheme.surface,
-                                    labelColor = MaterialTheme.colorScheme.primary
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(4.dp)
+                                    .clickable {
+                                        showCategoryPicker = false
+                                        newCatName = ""
+                                        newCatEmoji = "🛍️"
+                                        newCatColor = "#FF9800"
+                                        newCatParent = null
+                                        newCatBudgetEnabled = true
+                                        newCatAnalyticsEnabled = true
+                                        showCreateCategory = true
+                                    },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surface
+                                ),
+                                border = BorderStroke(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.outlineVariant
                                 )
-                            )
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Text("➕", fontSize = 24.sp)
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        text = "+ New",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        maxLines = 1,
+                                        textAlign = TextAlign.Center,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -3149,16 +3140,20 @@ private fun CategoryGridItem(
         )
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Text(category.emoji, fontSize = 24.sp)
             Spacer(Modifier.height(4.dp))
             Text(
-                category.displayName,
+                text = category.displayName,
                 style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
+                maxLines = 2,
+                textAlign = TextAlign.Center,
+                overflow = TextOverflow.Ellipsis,
                 color = if (isSelected) MaterialTheme.colorScheme.primary 
                         else MaterialTheme.colorScheme.onSurface
             )
@@ -3418,313 +3413,7 @@ private fun SplitTransactionDialog(
     )
 }
 
-@Composable
-private fun AdvancedFilterSheet(
-    filterState: FilterState,
-    allCategories: List<Category>,
-    onDismiss: () -> Unit,
-    onApplyFilters: (FilterState) -> Unit,
-    onResetFilters: () -> Unit
-) {
-    var searchQuery by remember { mutableStateOf(filterState.searchQuery) }
-    var selectedCategory by remember { mutableStateOf(filterState.selectedCategory) }
-    var minAmountText by remember { mutableStateOf(filterState.minAmount?.toString() ?: "") }
-    var maxAmountText by remember { mutableStateOf(filterState.maxAmount?.toString() ?: "") }
-    var status by remember { mutableStateOf(filterState.status) }
-    var paymentMethod by remember { mutableStateOf(filterState.paymentMethod) }
-    var isManual by remember { mutableStateOf(filterState.isManual) }
-    var isExcludedFromBudget by remember { mutableStateOf(filterState.isExcludedFromBudget) }
-    var isExcludedFromAnalytics by remember { mutableStateOf(filterState.isExcludedFromAnalytics) }
-    var contactName by remember { mutableStateOf(filterState.contactName ?: "") }
-    var selectedMerchant by remember { mutableStateOf(filterState.selectedMerchant ?: "") }
-    var showCatPicker by remember { mutableStateOf(false) }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        shape = BottomSheetShape
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp)
-                .verticalScroll(rememberScrollState())
-                .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "Advanced Filters",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                TextButton(onClick = {
-                    searchQuery = ""
-                    selectedCategory = null
-                    minAmountText = ""
-                    maxAmountText = ""
-                    status = null
-                    paymentMethod = null
-                    isManual = null
-                    isExcludedFromBudget = null
-                    isExcludedFromAnalytics = null
-                    contactName = ""
-                    selectedMerchant = ""
-                    onResetFilters()
-                }) {
-                    Text("Reset All", color = MaterialTheme.colorScheme.error)
-                }
-            }
-
-            // Merchant Filter
-            OutlinedTextField(
-                value = selectedMerchant,
-                onValueChange = { selectedMerchant = it },
-                label = { Text("Filter by Merchant") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Category selector
-            Column {
-                Text("CATEGORY", style = DotMatrixLabel, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(6.dp))
-                OutlinedButton(
-                    onClick = { showCatPicker = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = ChipShape
-                ) {
-                    Text(selectedCategory?.let { "${it.emoji} ${it.displayName}" } ?: "Select Category")
-                }
-            }
-
-            // Amount Range
-            Column {
-                Text("AMOUNT RANGE", style = DotMatrixLabel, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = minAmountText,
-                        onValueChange = { if (it.isEmpty() || it.toDoubleOrNull() != null) minAmountText = it },
-                        label = { Text("Min (₹)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = maxAmountText,
-                        onValueChange = { if (it.isEmpty() || it.toDoubleOrNull() != null) maxAmountText = it },
-                        label = { Text("Max (₹)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-
-
-
-            // Payment Method
-            Column {
-                Text("PAYMENT METHOD", style = DotMatrixLabel, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(6.dp))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    item {
-                        FilterChip(
-                            selected = paymentMethod == null,
-                            onClick = { paymentMethod = null },
-                            label = { Text("Any") }
-                        )
-                    }
-                    PaymentMethod.entries.forEach { pm ->
-                        item {
-                            FilterChip(
-                                selected = paymentMethod == pm,
-                                onClick = { paymentMethod = pm },
-                                label = { Text(pm.name) }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Import source / Manual entry
-            Column {
-                Text("IMPORT SOURCE", style = DotMatrixLabel, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    FilterChip(
-                        selected = isManual == null,
-                        onClick = { isManual = null },
-                        label = { Text("All") },
-                        modifier = Modifier.weight(1f)
-                    )
-                    FilterChip(
-                        selected = isManual == true,
-                        onClick = { isManual = true },
-                        label = { Text("Manual Entry") },
-                        modifier = Modifier.weight(1.5f)
-                    )
-                    FilterChip(
-                        selected = isManual == false,
-                        onClick = { isManual = false },
-                        label = { Text("SMS Imported") },
-                        modifier = Modifier.weight(1.5f)
-                    )
-                }
-            }
-
-            // Contact Name Filter
-            OutlinedTextField(
-                value = contactName,
-                onValueChange = { contactName = it },
-                label = { Text("Filter by Contact Name") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Exclude Flags
-            Column {
-                Text("BUDGET & ANALYTICS EXCLUSIONS", style = DotMatrixLabel, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(6.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Budget Excluded", style = MaterialTheme.typography.bodyMedium)
-                    Row {
-                        FilterChip(
-                            selected = isExcludedFromBudget == null,
-                            onClick = { isExcludedFromBudget = null },
-                            label = { Text("Either") }
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        FilterChip(
-                            selected = isExcludedFromBudget == true,
-                            onClick = { isExcludedFromBudget = true },
-                            label = { Text("Yes") }
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        FilterChip(
-                            selected = isExcludedFromBudget == false,
-                            onClick = { isExcludedFromBudget = false },
-                            label = { Text("No") }
-                        )
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Analytics Excluded", style = MaterialTheme.typography.bodyMedium)
-                    Row {
-                        FilterChip(
-                            selected = isExcludedFromAnalytics == null,
-                            onClick = { isExcludedFromAnalytics = null },
-                            label = { Text("Either") }
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        FilterChip(
-                            selected = isExcludedFromAnalytics == true,
-                            onClick = { isExcludedFromAnalytics = true },
-                            label = { Text("Yes") }
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        FilterChip(
-                            selected = isExcludedFromAnalytics == false,
-                            onClick = { isExcludedFromAnalytics = false },
-                            label = { Text("No") }
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            Button(
-                onClick = {
-                    onApplyFilters(
-                        filterState.copy(
-                            searchQuery = searchQuery,
-                            selectedCategory = selectedCategory,
-                            minAmount = minAmountText.toDoubleOrNull(),
-                            maxAmount = maxAmountText.toDoubleOrNull(),
-                            status = status,
-                            paymentMethod = paymentMethod,
-                            isManual = isManual,
-                            isExcludedFromBudget = isExcludedFromBudget,
-                            isExcludedFromAnalytics = isExcludedFromAnalytics,
-                            contactName = contactName.ifBlank { null },
-                            selectedMerchant = selectedMerchant.ifBlank { null }
-                        )
-                    )
-                    onDismiss()
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = ChipShape
-            ) {
-                Text("Apply Filters")
-            }
-        }
-    }
-
-    if (showCatPicker) {
-        ModalBottomSheet(
-            onDismissRequest = { showCatPicker = false },
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            shape = BottomSheetShape
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp)
-                    .navigationBarsPadding()
-            ) {
-                Text(
-                    "Select Category",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Spacer(Modifier.height(16.dp))
-
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp)
-                ) {
-                    item {
-                        CategoryGridItem(
-                            category = Category(name = "ANY", displayName = "Any Category", emoji = "🏷️", color = "#000000"),
-                            isSelected = selectedCategory == null,
-                            onClick = {
-                                selectedCategory = null
-                                showCatPicker = false
-                            }
-                        )
-                    }
-                    items(allCategories) { category ->
-                        CategoryGridItem(
-                            category = category,
-                            isSelected = selectedCategory?.name == category.name,
-                            onClick = {
-                                selectedCategory = category
-                                showCatPicker = false
-                            }
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
 
 private fun getMonthYear(timestamp: Long): String {
     val monthYearFormat = SimpleDateFormat("MMMM yyyy", Locale.getDefault())

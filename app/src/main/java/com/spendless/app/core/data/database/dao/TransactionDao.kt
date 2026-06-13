@@ -262,7 +262,7 @@ interface TransactionDao {
                OR userNote LIKE '%' || :searchQuery || '%'
                OR contactName LIKE '%' || :searchQuery || '%'
                OR contactPhone LIKE '%' || :searchQuery || '%')
-          AND (:selectedCategoryName IS NULL OR category = :selectedCategoryName)
+          AND (:useCategoryFilter = 0 OR category IN (:selectedCategoryNames))
           AND (:type IS NULL OR type = :type)
           AND (:status IS NULL OR status = :status)
           AND (:startTime = 0 OR timestamp >= :startTime)
@@ -288,7 +288,8 @@ interface TransactionDao {
     """)
     fun getFilteredTransactionsPagedAdvanced(
         searchQuery: String,
-        selectedCategoryName: String?,
+        useCategoryFilter: Int,
+        selectedCategoryNames: List<String>,
         type: String?,
         status: String?,
         startTime: Long,
@@ -319,7 +320,7 @@ interface TransactionDao {
                OR t.userNote LIKE '%' || :searchQuery || '%'
                OR t.contactName LIKE '%' || :searchQuery || '%'
                OR t.contactPhone LIKE '%' || :searchQuery || '%')
-          AND (:categoryName IS NULL OR t.category = :categoryName)
+          AND (:useCategoryFilter = 0 OR t.category IN (:selectedCategoryNames))
           AND (:type IS NULL OR t.type = :type)
           AND (:status IS NULL OR t.status = :status)
           AND (:minAmount IS NULL OR t.amount >= :minAmount)
@@ -335,7 +336,8 @@ interface TransactionDao {
         startTime: Long,
         endTime: Long,
         searchQuery: String,
-        categoryName: String?,
+        useCategoryFilter: Int,
+        selectedCategoryNames: List<String>,
         type: String?,
         status: String?,
         minAmount: Double?,

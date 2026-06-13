@@ -42,7 +42,7 @@ enum class SortBy {
 
 data class FilterState(
     val searchQuery: String = "",
-    val selectedCategory: Category? = null,
+    val selectedCategories: List<Category> = emptyList(),
     val selectedTab: TransactionTab = TransactionTab.ALL,
     val period: TransactionPeriod = TransactionPeriod.CURRENT_CYCLE,
     val sortBy: SortBy = SortBy.NEWEST,
@@ -158,12 +158,19 @@ class TransactionsViewModel @Inject constructor(
             TransactionTab.SELF_TRANSFER -> "SELF_TRANSFER"
             else -> filter.status?.name
         }
+        val useCategoryFilter = if (filter.selectedTab == TransactionTab.UNCATEGORIZED || filter.selectedCategories.isNotEmpty()) 1 else 0
+        val selectedCategoryNames = when {
+            filter.selectedTab == TransactionTab.UNCATEGORIZED -> listOf("UNCATEGORIZED")
+            filter.selectedCategories.isNotEmpty() -> filter.selectedCategories.map { it.name }
+            else -> listOf("")
+        }
         Pager(
             config = PagingConfig(pageSize = 50, enablePlaceholders = false)
         ) {
             transactionDao.getFilteredTransactionsPagedAdvanced(
                 searchQuery = filter.searchQuery,
-                selectedCategoryName = if (filter.selectedTab == TransactionTab.UNCATEGORIZED) "UNCATEGORIZED" else filter.selectedCategory?.name,
+                useCategoryFilter = useCategoryFilter,
+                selectedCategoryNames = selectedCategoryNames,
                 type = if (filter.selectedTab == TransactionTab.ALL) null else tabType,
                 status = tabStatus,
                 startTime = range.first,
@@ -215,11 +222,18 @@ class TransactionsViewModel @Inject constructor(
             TransactionTab.SELF_TRANSFER -> "SELF_TRANSFER"
             else -> filter.status?.name
         }
+        val useCategoryFilter = if (filter.selectedTab == TransactionTab.UNCATEGORIZED || filter.selectedCategories.isNotEmpty()) 1 else 0
+        val selectedCategoryNames = when {
+            filter.selectedTab == TransactionTab.UNCATEGORIZED -> listOf("UNCATEGORIZED")
+            filter.selectedCategories.isNotEmpty() -> filter.selectedCategories.map { it.name }
+            else -> listOf("")
+        }
         transactionDao.getQuickStats(
             startTime = range.first,
             endTime = range.second,
             searchQuery = filter.searchQuery,
-            categoryName = if (filter.selectedTab == TransactionTab.UNCATEGORIZED) "UNCATEGORIZED" else filter.selectedCategory?.name,
+            useCategoryFilter = useCategoryFilter,
+            selectedCategoryNames = selectedCategoryNames,
             type = if (filter.selectedTab == TransactionTab.ALL) null else tabType,
             status = tabStatus,
             minAmount = filter.minAmount,
@@ -362,15 +376,27 @@ class TransactionsViewModel @Inject constructor(
     }
 
     fun setTab(tab: TransactionTab) {
-        _filterState.update { it.copy(selectedTab = tab, selectedCategory = null) }
+        _filterState.update { it.copy(selectedTab = tab, selectedCategories = emptyList()) }
     }
 
     fun setSearchQuery(query: String) {
         _filterState.update { it.copy(searchQuery = query) }
     }
 
-    fun setCategory(category: Category?) {
-        _filterState.update { it.copy(selectedCategory = category) }
+    fun toggleCategory(category: Category) {
+        _filterState.update { state ->
+            val current = state.selectedCategories
+            val next = if (current.contains(category)) {
+                current - category
+            } else {
+                current + category
+            }
+            state.copy(selectedCategories = next)
+        }
+    }
+
+    fun clearCategories() {
+        _filterState.update { it.copy(selectedCategories = emptyList()) }
     }
 
     fun updateFilters(updater: (FilterState) -> FilterState) {
