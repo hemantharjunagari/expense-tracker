@@ -682,16 +682,30 @@ fun TransactionsScreen(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
                 shape = BottomSheetShape
             ) {
+                val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(max = screenHeight * 0.75f)
                         .navigationBarsPadding()
                 ) {
+                    val categoriesFiltered = allCategories.filter { cat ->
+                        when (filterState.selectedTab) {
+                            TransactionTab.EXPENSES -> cat.name != "INCOME" && cat.name != "TRANSFER" && cat.name != "SELF_TRANSFER" && cat.name != "UNCATEGORIZED"
+                            TransactionTab.INCOME -> cat.name == "INCOME"
+                            TransactionTab.SELF_TRANSFER -> cat.name == "SELF_TRANSFER"
+                            TransactionTab.UNCATEGORIZED -> cat.name == "UNCATEGORIZED"
+                            else -> true
+                        }
+                    }
+
+                    // Scrollable category content with bottom padding for footer
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
                             .padding(horizontal = 24.dp)
-                            .padding(top = 8.dp, bottom = 80.dp)
+                            .padding(top = 8.dp, bottom = 96.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -709,38 +723,34 @@ fun TransactionsScreen(
                         }
                         Spacer(Modifier.height(16.dp))
 
-                        val categoriesFiltered = allCategories.filter { cat ->
-                            when (filterState.selectedTab) {
-                                TransactionTab.EXPENSES -> cat.name != "INCOME" && cat.name != "TRANSFER" && cat.name != "SELF_TRANSFER" && cat.name != "UNCATEGORIZED"
-                                TransactionTab.INCOME -> cat.name == "INCOME"
-                                TransactionTab.SELF_TRANSFER -> cat.name == "SELF_TRANSFER"
-                                TransactionTab.UNCATEGORIZED -> cat.name == "UNCATEGORIZED"
-                                else -> true
-                            }
-                        }
-
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(3),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 280.dp)
-                        ) {
-                            items(categoriesFiltered) { category ->
-                                val isSelected = filterState.selectedCategories.any { it.name == category.name }
-                                CategoryGridItem(
-                                    category = category,
-                                    isSelected = isSelected,
-                                    onClick = {
-                                        viewModel.toggleCategory(category)
+                        // Manual grid (3 columns) — compatible with outer verticalScroll
+                        val columns = 3
+                        val rows = (categoriesFiltered.size + columns - 1) / columns
+                        repeat(rows) { row ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                repeat(columns) { col ->
+                                    val idx = row * columns + col
+                                    if (idx < categoriesFiltered.size) {
+                                        val category = categoriesFiltered[idx]
+                                        val isSelected = filterState.selectedCategories.any { it.name == category.name }
+                                        CategoryGridItem(
+                                            category = category,
+                                            isSelected = isSelected,
+                                            onClick = { viewModel.toggleCategory(category) },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    } else {
+                                        Spacer(modifier = Modifier.weight(1f))
                                     }
-                                )
+                                }
                             }
                         }
                     }
 
-                    // Sticky Footer with gradient blend texture overlay
+                    // Sticky Done button with gradient fade-in — always at bottom
                     Column(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
@@ -3208,10 +3218,11 @@ private fun <T> TactileSegmentedControl(
 private fun CategoryGridItem(
     category: Category,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(4.dp)
             .clickable { onClick() },
