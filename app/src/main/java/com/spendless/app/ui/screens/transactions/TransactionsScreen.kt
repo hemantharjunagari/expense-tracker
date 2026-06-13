@@ -741,28 +741,40 @@ fun TransactionsScreen(
                     }
 
                     // Sticky Footer with gradient blend texture overlay
-                    Box(
+                    Column(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.Transparent,
-                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f),
-                                        MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        // Fade-in zone: transparent → opaque
+                        Spacer(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(28.dp)
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.Transparent,
+                                            MaterialTheme.colorScheme.surfaceVariant
+                                        )
                                     )
                                 )
-                            )
-                            .padding(top = 24.dp, bottom = 24.dp)
-                            .padding(horizontal = 24.dp)
-                    ) {
-                        Button(
-                            onClick = { showCategoryFilterSheet = false },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = ChipShape
+                        )
+                        // Fully opaque background behind button
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(horizontal = 24.dp)
+                                .padding(bottom = 24.dp)
                         ) {
-                            Text("Done")
+                            Button(
+                                onClick = { showCategoryFilterSheet = false },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = ChipShape
+                            ) {
+                                Text("Done")
+                            }
                         }
                     }
                 }
@@ -1702,24 +1714,32 @@ private fun AddTransactionSheet(
             }
 
             // Sticky footer with gradient blend
-            Box(
+            Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
-                                MaterialTheme.colorScheme.surface
+            ) {
+                // Fade-in zone: transparent → opaque
+                Spacer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(28.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    MaterialTheme.colorScheme.surface
+                                )
                             )
                         )
-                    )
-                    .padding(top = 20.dp, bottom = 20.dp)
-                    .padding(horizontal = 20.dp)
-            ) {
+                )
+                // Fully opaque background behind buttons
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
@@ -2714,24 +2734,32 @@ private fun TransactionDetailsDialog(
             }
 
             // Sticky footer with gradient blend
-            Box(
+            Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
-                                MaterialTheme.colorScheme.surface
+            ) {
+                // Fade-in zone: transparent → opaque
+                Spacer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(28.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    MaterialTheme.colorScheme.surface
+                                )
                             )
                         )
-                    )
-                    .padding(top = 20.dp, bottom = 20.dp)
-                    .padding(horizontal = 20.dp)
-            ) {
+                )
+                // Fully opaque background behind buttons
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
