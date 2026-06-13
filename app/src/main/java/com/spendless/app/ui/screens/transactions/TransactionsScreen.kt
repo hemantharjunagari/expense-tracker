@@ -42,6 +42,7 @@ import java.util.Date
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.foundation.text.BasicTextField
@@ -681,66 +682,88 @@ fun TransactionsScreen(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
                 shape = BottomSheetShape
             ) {
-                Column(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp)
                         .navigationBarsPadding()
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "Select Categories",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        TextButton(onClick = { viewModel.clearCategories() }) {
-                            Text("Clear All", color = MaterialTheme.colorScheme.error)
-                        }
-                    }
-                    Spacer(Modifier.height(16.dp))
-
-                    val categoriesFiltered = allCategories.filter { cat ->
-                        when (filterState.selectedTab) {
-                            TransactionTab.EXPENSES -> cat.name != "INCOME" && cat.name != "TRANSFER" && cat.name != "SELF_TRANSFER" && cat.name != "UNCATEGORIZED"
-                            TransactionTab.INCOME -> cat.name == "INCOME"
-                            TransactionTab.SELF_TRANSFER -> cat.name == "SELF_TRANSFER"
-                            TransactionTab.UNCATEGORIZED -> cat.name == "UNCATEGORIZED"
-                            else -> true
-                        }
-                    }
-
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f, fill = false)
+                            .padding(horizontal = 24.dp)
+                            .padding(top = 8.dp, bottom = 80.dp)
                     ) {
-                        items(categoriesFiltered) { category ->
-                            val isSelected = filterState.selectedCategories.any { it.name == category.name }
-                            CategoryGridItem(
-                                category = category,
-                                isSelected = isSelected,
-                                onClick = {
-                                    viewModel.toggleCategory(category)
-                                }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Select Categories",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onBackground
                             )
+                            TextButton(onClick = { viewModel.clearCategories() }) {
+                                Text("Clear All", color = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                        Spacer(Modifier.height(16.dp))
+
+                        val categoriesFiltered = allCategories.filter { cat ->
+                            when (filterState.selectedTab) {
+                                TransactionTab.EXPENSES -> cat.name != "INCOME" && cat.name != "TRANSFER" && cat.name != "SELF_TRANSFER" && cat.name != "UNCATEGORIZED"
+                                TransactionTab.INCOME -> cat.name == "INCOME"
+                                TransactionTab.SELF_TRANSFER -> cat.name == "SELF_TRANSFER"
+                                TransactionTab.UNCATEGORIZED -> cat.name == "UNCATEGORIZED"
+                                else -> true
+                            }
+                        }
+
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(3),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 280.dp)
+                        ) {
+                            items(categoriesFiltered) { category ->
+                                val isSelected = filterState.selectedCategories.any { it.name == category.name }
+                                CategoryGridItem(
+                                    category = category,
+                                    isSelected = isSelected,
+                                    onClick = {
+                                        viewModel.toggleCategory(category)
+                                    }
+                                )
+                            }
                         }
                     }
-                    
-                    Spacer(Modifier.height(16.dp))
-                    
-                    Button(
-                        onClick = { showCategoryFilterSheet = false },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = ChipShape
+
+                    // Sticky Footer with gradient blend texture overlay
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f),
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                )
+                            )
+                            .padding(top = 24.dp, bottom = 24.dp)
+                            .padding(horizontal = 24.dp)
                     ) {
-                        Text("Done")
+                        Button(
+                            onClick = { showCategoryFilterSheet = false },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = ChipShape
+                        ) {
+                            Text("Done")
+                        }
                     }
                 }
             }
@@ -1195,12 +1218,12 @@ private fun AddTransactionSheet(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
             shadowElevation = 8.dp
         ) {
+            Box(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .animateContentSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(20.dp),
+                    .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 96.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
@@ -1676,7 +1699,25 @@ private fun AddTransactionSheet(
 
                 Spacer(Modifier.height(8.dp))
 
-                // Bottom Buttons: Cancel & Save
+            }
+
+            // Sticky footer with gradient blend
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
+                                MaterialTheme.colorScheme.surface
+                            )
+                        )
+                    )
+                    .padding(top = 20.dp, bottom = 20.dp)
+                    .padding(horizontal = 20.dp)
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -1714,6 +1755,7 @@ private fun AddTransactionSheet(
                     }
                 }
             }
+            } // end Box
         }
     }
 
@@ -2135,12 +2177,12 @@ private fun TransactionDetailsDialog(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
             shadowElevation = 8.dp
         ) {
+            Box(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .animateContentSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(20.dp),
+                    .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 96.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Header Card: Amount & Date
@@ -2658,9 +2700,36 @@ private fun TransactionDetailsDialog(
                     Text("Delete Transaction")
                 }
 
-                Spacer(Modifier.height(8.dp))
+                if (showSplitDialog) {
+                    SplitTransactionDialog(
+                        transaction = draftTxn,
+                        allCategories = allCategories,
+                        onDismiss = { showSplitDialog = false },
+                        onSave = { updatedSplits ->
+                            draftTxn = draftTxn.copy(splits = updatedSplits)
+                            showSplitDialog = false
+                        }
+                    )
+                }
+            }
 
-                // Bottom Buttons: Cancel & Save
+            // Sticky footer with gradient blend
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
+                                MaterialTheme.colorScheme.surface
+                            )
+                        )
+                    )
+                    .padding(top = 20.dp, bottom = 20.dp)
+                    .padding(horizontal = 20.dp)
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -2693,19 +2762,8 @@ private fun TransactionDetailsDialog(
                         Text("Save")
                     }
                 }
-
-                if (showSplitDialog) {
-                    SplitTransactionDialog(
-                        transaction = draftTxn,
-                        allCategories = allCategories,
-                        onDismiss = { showSplitDialog = false },
-                        onSave = { updatedSplits ->
-                            draftTxn = draftTxn.copy(splits = updatedSplits)
-                            showSplitDialog = false
-                        }
-                    )
-                }
             }
+            } // end Box
         }
     }
 

@@ -42,6 +42,7 @@ data class DashboardUiState(
     val error: String? = null,
     val showTrackingPopup: Boolean = false,
     val trackingPeriod: String = "Current Cycle",
+    val trackingCustomRange: Pair<Long, Long>? = null,
     val trackingData: List<AnalyticsEngine.DailyIncomeExpense> = emptyList(),
     val trackingIsLoading: Boolean = false
 )
@@ -170,8 +171,8 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    fun setTrackingPeriod(period: String) {
-        _uiState.update { it.copy(trackingPeriod = period) }
+    fun setTrackingPeriod(period: String, customRange: Pair<Long, Long>? = null) {
+        _uiState.update { it.copy(trackingPeriod = period, trackingCustomRange = customRange) }
         loadTrackingData()
     }
 
@@ -193,6 +194,9 @@ class DashboardViewModel @Inject constructor(
                 "Last 30 Days" -> {
                     val now = System.currentTimeMillis()
                     (now - 30L * 24 * 60 * 60 * 1000) to now
+                }
+                "Custom Range" -> {
+                    _uiState.value.trackingCustomRange ?: getDefaultMonthRange()
                 }
                 else -> getDefaultMonthRange()
             }

@@ -258,6 +258,7 @@ fun DashboardScreen(
                     uiState = uiState,
                     onDismiss = { viewModel.setTrackingPopupVisible(false) },
                     onPeriodSelected = { viewModel.setTrackingPeriod(it) },
+                    onCustomRangeSelected = { range -> viewModel.setTrackingPeriod("Custom Range", range) },
                     onNavigateToDate = { dateMs ->
                         viewModel.setTrackingPopupVisible(false)
                         onNavigateToTransactions(null, dateMs)
@@ -327,7 +328,7 @@ private fun DashboardHeader(
                 }
 
                 IconButton(onClick = onReviewClick) {
-                    Box {
+                    Box(modifier = Modifier.padding(2.dp)) {
                         Icon(
                             imageVector = if (pendingReviewCount > 0) Icons.Outlined.NotificationsActive else Icons.Outlined.Notifications,
                             contentDescription = "Notifications",
@@ -336,10 +337,23 @@ private fun DashboardHeader(
                         if (pendingReviewCount > 0) {
                             Box(
                                 modifier = Modifier
-                                    .size(8.dp)
                                     .align(Alignment.TopEnd)
+                                    .offset(x = 6.dp, y = (-6).dp)
                                     .background(Color.Red, shape = CircleShape)
-                            )
+                                    .sizeIn(minWidth = 14.dp, minHeight = 14.dp)
+                                    .padding(horizontal = 3.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = pendingReviewCount.toString(),
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    maxLines = 1
+                                )
+                            }
                         }
                     }
                 }

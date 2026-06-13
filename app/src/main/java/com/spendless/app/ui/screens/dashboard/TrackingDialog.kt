@@ -35,17 +35,20 @@ import com.spendless.app.ui.theme.DotMatrixLabel
 import com.spendless.app.ui.theme.MonoAmount
 import java.text.SimpleDateFormat
 import java.util.*
+import com.spendless.app.ui.screens.transactions.SimpleDateRangePickerDialog
 
 @Composable
 fun TrackingDialog(
     uiState: DashboardUiState,
     onDismiss: () -> Unit,
     onPeriodSelected: (String) -> Unit,
+    onCustomRangeSelected: (Pair<Long, Long>) -> Unit = {},
     onNavigateToDate: (Long) -> Unit = {}
 ) {
     var currentTab by remember { mutableStateOf("Trend") } // "Trend", "Daily", "Calendar"
     val tabs = listOf("Trend", "Daily", "Calendar")
     var showPeriodDropdown by remember { mutableStateOf(false) }
+    var showCustomDatePicker by remember { mutableStateOf(false) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -80,6 +83,13 @@ fun TrackingDialog(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Box {
+                            val periodLabel = if (uiState.trackingPeriod == "Custom Range" && uiState.trackingCustomRange != null) {
+                                val sdf = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+                                "${sdf.format(Date(uiState.trackingCustomRange.first))} – ${sdf.format(Date(uiState.trackingCustomRange.second))}"
+                            } else {
+                                uiState.trackingPeriod
+                            }
+
                             Row(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
@@ -89,7 +99,7 @@ fun TrackingDialog(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Text(
-                                    text = uiState.trackingPeriod,
+                                    text = periodLabel,
                                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                                     color = MaterialTheme.colorScheme.primary
                                 )
@@ -106,11 +116,15 @@ fun TrackingDialog(
                                 onDismissRequest = { showPeriodDropdown = false },
                                 modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
                             ) {
-                                listOf("Current Cycle", "Current Month", "Last 30 Days").forEach { period ->
+                                listOf("Current Cycle", "Current Month", "Last 30 Days", "Custom Range").forEach { period ->
                                     DropdownMenuItem(
                                         text = { Text(period, color = MaterialTheme.colorScheme.onSurfaceVariant) },
                                         onClick = {
-                                            onPeriodSelected(period)
+                                            if (period == "Custom Range") {
+                                                showCustomDatePicker = true
+                                            } else {
+                                                onPeriodSelected(period)
+                                            }
                                             showPeriodDropdown = false
                                         }
                                     )
@@ -190,6 +204,13 @@ fun TrackingDialog(
                 }
             }
         }
+    }
+
+    if (showCustomDatePicker) {
+        SimpleDateRangePickerDialog(
+            onDismiss = { showCustomDatePicker = false },
+            onDateRangeSelected = onCustomRangeSelected
+        )
     }
 }
 
@@ -740,6 +761,7 @@ private fun CalendarView(
             }
         }
     }
+
 }
 
 private fun formatCompact(amount: Double): String {
