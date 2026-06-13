@@ -1,0 +1,575 @@
+package com.spendless.app.ui.screens.dashboard
+
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.ArrowDropDown
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.spendless.app.core.analytics.AnalyticsEngine
+import com.spendless.app.ui.components.DotMatrixLoader
+import com.spendless.app.ui.theme.DotMatrixLabel
+import com.spendless.app.ui.theme.MonoAmount
+import java.text.SimpleDateFormat
+import java.util.*
+
+@Composable
+fun TrackingDialog(
+    uiState: DashboardUiState,
+    onDismiss: () -> Unit,
+    onPeriodSelected: (String) -> Unit
+) {
+    var currentTab by remember { mutableStateOf("Trend") } // "Trend", "Daily", "Calendar"
+    val tabs = listOf("Trend", "Daily", "Calendar")
+    var showPeriodDropdown by remember { mutableStateOf(false) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .wrapContentHeight()
+                .clip(RoundedCornerShape(28.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(28.dp)),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                // Header Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "ACTIVITY TRACKING",
+                            style = DotMatrixLabel.copy(fontSize = 11.sp, letterSpacing = 2.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Box {
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { showPeriodDropdown = true }
+                                    .padding(vertical = 4.dp, horizontal = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = uiState.trackingPeriod,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Icon(
+                                    imageVector = Icons.Outlined.ArrowDropDown,
+                                    contentDescription = "Select Period",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            
+                            DropdownMenu(
+                                expanded = showPeriodDropdown,
+                                onDismissRequest = { showPeriodDropdown = false },
+                                modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                listOf("Current Cycle", "Current Month", "Last 30 Days").forEach { period ->
+                                    DropdownMenuItem(
+                                        text = { Text(period, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                                        onClick = {
+                                            onPeriodSelected(period)
+                                            showPeriodDropdown = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "Close Dialog",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                // Smooth Sliding Segmented Control Toggle
+                SlidingTactileSegmentedControl(
+                    options = tabs,
+                    selectedOption = currentTab,
+                    onOptionSelected = { currentTab = it },
+                    labelProvider = { it }
+                )
+
+                // Content View with Smooth Horizontal Sliding Transitions
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(280.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (uiState.trackingIsLoading) {
+                        DotMatrixLoader()
+                    } else if (uiState.trackingData.isEmpty()) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text("📊", fontSize = 36.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "No transactions found",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    } else {
+                        AnimatedContent(
+                            targetState = currentTab,
+                            transitionSpec = {
+                                val targetIndex = tabs.indexOf(targetState)
+                                val initialIndex = tabs.indexOf(initialState)
+                                val slideDirection = if (targetIndex > initialIndex) AnimatedContentTransitionScope.SlideDirection.Left else AnimatedContentTransitionScope.SlideDirection.Right
+                                slideIntoContainer(slideDirection, animationSpec = tween(300)) + fadeIn(animationSpec = tween(300)) togetherWith
+                                        slideOutOfContainer(slideDirection, animationSpec = tween(300)) + fadeOut(animationSpec = tween(300))
+                            },
+                            label = "TrackingContentTransition",
+                            modifier = Modifier.fillMaxSize()
+                        ) { tab ->
+                            when (tab) {
+                                "Trend" -> TrendView(uiState.trackingData)
+                                "Daily" -> DailyBarView(uiState.trackingData)
+                                "Calendar" -> CalendarView(uiState.trackingData)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun <T> SlidingTactileSegmentedControl(
+    options: List<T>,
+    selectedOption: T,
+    onOptionSelected: (T) -> Unit,
+    labelProvider: (T) -> String,
+    modifier: Modifier = Modifier
+) {
+    val selectedIndex = options.indexOf(selectedOption).coerceAtLeast(0)
+    
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(24.dp)
+            )
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(24.dp)
+            )
+            .padding(4.dp)
+    ) {
+        val width = maxWidth
+        val tabWidth = width / options.size
+        
+        val animatedOffset by animateDpAsState(
+            targetValue = tabWidth * selectedIndex,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessMedium
+            ),
+            label = "SegmentOffset"
+        )
+        
+        Box(
+            modifier = Modifier
+                .offset(x = animatedOffset)
+                .width(tabWidth)
+                .height(36.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.primary,
+                    shape = RoundedCornerShape(20.dp)
+                )
+        )
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            options.forEachIndexed { index, option ->
+                val isSelected = index == selectedIndex
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(20.dp))
+                        .clickable { onOptionSelected(option) }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = labelProvider(option),
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                        ),
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary 
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrendView(data: List<AnalyticsEngine.DailyIncomeExpense>) {
+    val sortedData = data.sortedBy { it.dateMs }
+    var cumulativeExpense = 0.0
+    var cumulativeIncome = 0.0
+    val points = sortedData.map { dayData ->
+        cumulativeExpense += dayData.expense
+        cumulativeIncome += dayData.income
+        dayData.dateMs to (cumulativeExpense to cumulativeIncome)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Legend indicator
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(10.dp, 3.dp).background(Color(0xFFFF3B30), RoundedCornerShape(1.dp)))
+                Spacer(Modifier.width(6.dp))
+                Text("Expenses", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(10.dp, 3.dp).background(Color(0xFF34C759), RoundedCornerShape(1.dp)))
+                Spacer(Modifier.width(6.dp))
+                Text("Income", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val w = size.width
+                val h = size.height
+                val paddingX = 20f
+                val paddingY = 30f
+                
+                // Draw gridlines
+                val gridStroke = 1.dp.toPx()
+                for (i in 0..4) {
+                    val y = paddingY + i * (h - 2 * paddingY) / 4
+                    drawLine(
+                        color = Color.White.copy(alpha = 0.08f),
+                        start = Offset(paddingX, y),
+                        end = Offset(w - paddingX, y),
+                        strokeWidth = gridStroke
+                    )
+                }
+
+                if (points.isNotEmpty()) {
+                    val xStep = (w - 2 * paddingX) / (points.size - 1).coerceAtLeast(1)
+                    val maxAmount = points.maxOf { maxOf(it.second.first, it.second.second) }.coerceAtLeast(1.0)
+                    
+                    val expensePath = Path()
+                    val incomePath = Path()
+                    val expenseFillPath = Path()
+                    val incomeFillPath = Path()
+                    
+                    points.forEachIndexed { index, (_, values) ->
+                        val (exp, inc) = values
+                        val x = paddingX + index * xStep
+                        val yExp = h - paddingY - (exp / maxAmount).toFloat() * (h - 2 * paddingY)
+                        val yInc = h - paddingY - (inc / maxAmount).toFloat() * (h - 2 * paddingY)
+                        
+                        if (index == 0) {
+                            expensePath.moveTo(x, yExp)
+                            incomePath.moveTo(x, yInc)
+                            
+                            expenseFillPath.moveTo(x, h - paddingY)
+                            expenseFillPath.lineTo(x, yExp)
+                            
+                            incomeFillPath.moveTo(x, h - paddingY)
+                            incomeFillPath.lineTo(x, yInc)
+                        } else {
+                            expensePath.lineTo(x, yExp)
+                            incomePath.lineTo(x, yInc)
+                            
+                            expenseFillPath.lineTo(x, yExp)
+                            incomeFillPath.lineTo(x, yInc)
+                        }
+                        
+                        if (index == points.lastIndex) {
+                            expenseFillPath.lineTo(x, h - paddingY)
+                            expenseFillPath.close()
+                            
+                            incomeFillPath.lineTo(x, h - paddingY)
+                            incomeFillPath.close()
+                        }
+                    }
+                    
+                    // Draw filled area with gradient
+                    drawPath(
+                        path = expenseFillPath,
+                        brush = Brush.verticalGradient(
+                            colors = listOf(Color(0xFFFF3B30).copy(alpha = 0.12f), Color.Transparent),
+                            startY = paddingY,
+                            endY = h - paddingY
+                        )
+                    )
+                    drawPath(
+                        path = incomeFillPath,
+                        brush = Brush.verticalGradient(
+                            colors = listOf(Color(0xFF34C759).copy(alpha = 0.12f), Color.Transparent),
+                            startY = paddingY,
+                            endY = h - paddingY
+                        )
+                    )
+                    
+                    // Draw lines
+                    drawPath(path = expensePath, color = Color(0xFFFF3B30), style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
+                    drawPath(path = incomePath, color = Color(0xFF34C759), style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DailyBarView(data: List<AnalyticsEngine.DailyIncomeExpense>) {
+    val sortedData = data.sortedBy { it.dateMs }
+
+    Canvas(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(vertical = 12.dp)
+    ) {
+        val w = size.width
+        val h = size.height
+        val paddingX = 20f
+        val paddingY = 30f
+        
+        // Draw horizontal gridlines
+        val gridStroke = 1.dp.toPx()
+        for (i in 0..4) {
+            val y = paddingY + i * (h - 2 * paddingY) / 4
+            drawLine(
+                color = Color.White.copy(alpha = 0.08f),
+                start = Offset(paddingX, y),
+                end = Offset(w - paddingX, y),
+                strokeWidth = gridStroke
+            )
+        }
+
+        if (sortedData.isNotEmpty()) {
+            val barCount = sortedData.size
+            val xStep = (w - 2 * paddingX) / barCount
+            val maxExpense = sortedData.maxOf { it.expense }.coerceAtLeast(1.0)
+            val barWidth = (xStep * 0.6f).coerceAtLeast(4f)
+            
+            sortedData.forEachIndexed { index, dayData ->
+                val exp = dayData.expense
+                val x = paddingX + index * xStep + (xStep - barWidth) / 2
+                val barHeight = (exp / maxExpense).toFloat() * (h - 2 * paddingY)
+                val y = h - paddingY - barHeight
+                
+                if (exp > 0) {
+                    drawRoundRect(
+                        color = Color(0xFFFF3B30),
+                        topLeft = Offset(x, y),
+                        size = Size(barWidth, barHeight),
+                        cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalendarView(data: List<AnalyticsEngine.DailyIncomeExpense>) {
+    val calendar = Calendar.getInstance().apply {
+        val startMs = data.firstOrNull()?.dateMs ?: System.currentTimeMillis()
+        timeInMillis = startMs
+        set(Calendar.DAY_OF_MONTH, 1)
+    }
+
+    val currentMonth = calendar.get(Calendar.MONTH)
+    val currentYear = calendar.get(Calendar.YEAR)
+    val firstDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK) // 1 = Sun, 2 = Mon, ...
+    val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+
+    val monthName = calendar.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale.getDefault()) ?: ""
+
+    // Group transaction aggregates by day of month
+    val dataByDay = data.associateBy { dayData ->
+        val cal = Calendar.getInstance().apply { timeInMillis = dayData.dateMs }
+        "${cal.get(Calendar.YEAR)}-${cal.get(Calendar.MONTH)}-${cal.get(Calendar.DAY_OF_MONTH)}"
+    }
+
+    val weekdays = listOf("S", "M", "T", "W", "T", "F", "S")
+
+    // Construct grid cells
+    val totalCells = ((firstDayOfWeek - 1) + daysInMonth + 6) / 7 * 7
+    val daysList = mutableListOf<Int?>()
+    for (i in 1 until firstDayOfWeek) {
+        daysList.add(null)
+    }
+    for (day in 1..daysInMonth) {
+        daysList.add(day)
+    }
+    while (daysList.size < totalCells) {
+        daysList.add(null)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Month name header label
+        Text(
+            text = "$monthName $currentYear".uppercase(),
+            style = DotMatrixLabel.copy(fontSize = 9.sp, letterSpacing = 2.sp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center
+        )
+
+        // Weekday Row
+        Row(modifier = Modifier.fillMaxWidth()) {
+            weekdays.forEach { day ->
+                Text(
+                    text = day,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+            }
+        }
+
+        // Calendar grid cells
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            daysList.chunked(7).forEach { weekDays ->
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    weekDays.forEach { day ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .border(
+                                    width = 0.5.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.08f)
+                                )
+                                .padding(1.dp),
+                            contentAlignment = Alignment.TopCenter
+                        ) {
+                            if (day != null) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxHeight()
+                                ) {
+                                    Text(
+                                        text = day.toString(),
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    
+                                    val dayKey = "$currentYear-$currentMonth-$day"
+                                    val dayData = dataByDay[dayKey]
+                                    
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        if (dayData != null && dayData.expense > 0) {
+                                            Text(
+                                                text = "-${formatCompact(dayData.expense)}",
+                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 7.sp, fontWeight = FontWeight.Bold),
+                                                color = Color(0xFFFF3B30),
+                                                maxLines = 1
+                                            )
+                                        }
+                                        if (dayData != null && dayData.income > 0) {
+                                            Text(
+                                                text = "+${formatCompact(dayData.income)}",
+                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 7.sp, fontWeight = FontWeight.Bold),
+                                                color = Color(0xFF34C759),
+                                                maxLines = 1
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun formatCompact(amount: Double): String {
+    return when {
+        amount >= 100_000 -> String.format(Locale.US, "%.0fL", amount / 100_000)
+        amount >= 1_000 -> String.format(Locale.US, "%.1fK", amount / 1_000).replace(".0", "")
+        else -> amount.toInt().toString()
+    }
+}

@@ -245,12 +245,21 @@ fun DashboardScreen(
                 pendingReviewCount = uiState.pendingReviewCount,
                 onReviewClick = onNavigateToReview,
                 onSettingsClick = onNavigateToSettings,
+                onTrackingClick = { viewModel.setTrackingPopupVisible(true) },
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .onGloballyPositioned { coordinates ->
                         headerHeight = with(density) { coordinates.size.height.toDp() }
                     }
             )
+
+            if (uiState.showTrackingPopup) {
+                TrackingDialog(
+                    uiState = uiState,
+                    onDismiss = { viewModel.setTrackingPopupVisible(false) },
+                    onPeriodSelected = { viewModel.setTrackingPeriod(it) }
+                )
+            }
         }
     }
 }
@@ -263,6 +272,7 @@ private fun DashboardHeader(
     pendingReviewCount: Int,
     onReviewClick: () -> Unit,
     onSettingsClick: () -> Unit,
+    onTrackingClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -304,6 +314,14 @@ private fun DashboardHeader(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                IconButton(onClick = onTrackingClick) {
+                    Icon(
+                        imageVector = Icons.Outlined.TrendingUp,
+                        contentDescription = "Tracking",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
                 IconButton(onClick = onReviewClick) {
                     Box {
                         Icon(

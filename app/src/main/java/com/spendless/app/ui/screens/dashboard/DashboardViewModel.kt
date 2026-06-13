@@ -39,7 +39,11 @@ data class DashboardUiState(
     val pendingReviewCount: Int = 0,
     val pendingReviewSum: Double = 0.0,
     val appName: String = "SpendLess",
-    val error: String? = null
+    val error: String? = null,
+    val showTrackingPopup: Boolean = false,
+    val trackingPeriod: String = "Current Cycle",
+    val trackingData: List<AnalyticsEngine.DailyIncomeExpense> = emptyList(),
+    val trackingIsLoading: Boolean = false
 )
 
 @HiltViewModel
@@ -157,6 +161,63 @@ class DashboardViewModel @Inject constructor(
     fun refresh() {
         _uiState.update { it.copy(isLoading = true) }
         loadDashboard()
+    }
+
+    fun setTrackingPopupVisible(visible: Boolean) {
+        _uiState.update { it.copy(showTrackingPopup = visible) }
+        if (visible) {
+            loadTrackingData()
+        }
+    }
+
+    fun setTrackingPeriod(period: String) {
+        _uiState.update { it.copy(trackingPeriod = period) }
+        loadTrackingData()
+    }
+
+    private fun loadTrackingData() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(trackingIsLoading = true) }
+            val period = _uiState.value.trackingPeriod
+            val cycle = _uiState.value.activeCycle
+            
+            val (startMs, endMs) = when (period) {
+                "Current Cycle" -> {
+                    if (cycle != null) {
+                        cycle.startDate to cycle.endDate
+                    } else {
+                        getDefaultMonthRange()
+                    }
+                }
+                "Current Month" -> getDefaultMonthRange()
+                "Last 30 Days" -> {
+                    val now = System.currentTimeMillis()
+                    (now - 30L * 24 * 60 * 60 * 1000) to now
+                }
+                else -> getDefaultMonthRange()
+            }
+            
+            val data = analyticsEngine.getDailyIncomeVsExpense(startMs, endMs)
+            _uiState.update { 
+                it.copy(
+                    trackingData = data,
+                    trackingIsLoading = false
+                )
+            }
+        }
+    }
+
+    private fun getDefaultMonthRange(): Pair<Long, Long> {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.DAY_OF_MONTH, 1)
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        val start = calendar.timeInMillis
+        calendar.add(Calendar.MONTH, 1)
+        calendar.add(Calendar.MILLISECOND, -1)
+        return start to calendar.timeInMillis
     }
 }
 
