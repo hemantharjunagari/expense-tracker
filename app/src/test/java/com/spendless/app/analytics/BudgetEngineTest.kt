@@ -155,4 +155,46 @@ class BudgetEngineTest {
             set(Calendar.MINUTE, 0)
         }.timeInMillis
     }
+
+    @Test
+    fun `reset day 31 on February 28 non-leap year starts new cycle`() {
+        val feb28 = dateToMs(2026, Calendar.FEBRUARY, 28)
+        val cycle = budgetEngine.getCycleForTimestamp(resetDay = 31, timestamp = feb28)
+
+        val startCal = Calendar.getInstance().apply { timeInMillis = cycle.startMs }
+        val endCal = Calendar.getInstance().apply { timeInMillis = cycle.endMs }
+
+        assertEquals("Should start on Feb 28", 28, startCal.get(Calendar.DAY_OF_MONTH))
+        assertEquals("Should start in Feb", Calendar.FEBRUARY, startCal.get(Calendar.MONTH))
+        assertEquals("Should end on Mar 30", 30, endCal.get(Calendar.DAY_OF_MONTH))
+        assertEquals("Should end in March", Calendar.MARCH, endCal.get(Calendar.MONTH))
+    }
+
+    @Test
+    fun `reset day 31 on February 28 leap year belongs to previous cycle`() {
+        val feb28 = dateToMs(2028, Calendar.FEBRUARY, 28)
+        val cycle = budgetEngine.getCycleForTimestamp(resetDay = 31, timestamp = feb28)
+
+        val startCal = Calendar.getInstance().apply { timeInMillis = cycle.startMs }
+        val endCal = Calendar.getInstance().apply { timeInMillis = cycle.endMs }
+
+        assertEquals("Should start on Jan 31", 31, startCal.get(Calendar.DAY_OF_MONTH))
+        assertEquals("Should start in Jan", Calendar.JANUARY, startCal.get(Calendar.MONTH))
+        assertEquals("Should end on Feb 28", 28, endCal.get(Calendar.DAY_OF_MONTH))
+        assertEquals("Should end in Feb", Calendar.FEBRUARY, endCal.get(Calendar.MONTH))
+    }
+
+    @Test
+    fun `reset day 31 on February 29 leap year starts new cycle`() {
+        val feb29 = dateToMs(2028, Calendar.FEBRUARY, 29)
+        val cycle = budgetEngine.getCycleForTimestamp(resetDay = 31, timestamp = feb29)
+
+        val startCal = Calendar.getInstance().apply { timeInMillis = cycle.startMs }
+        val endCal = Calendar.getInstance().apply { timeInMillis = cycle.endMs }
+
+        assertEquals("Should start on Feb 29", 29, startCal.get(Calendar.DAY_OF_MONTH))
+        assertEquals("Should start in Feb", Calendar.FEBRUARY, startCal.get(Calendar.MONTH))
+        assertEquals("Should end on Mar 30", 30, endCal.get(Calendar.DAY_OF_MONTH))
+        assertEquals("Should end in March", Calendar.MARCH, endCal.get(Calendar.MONTH))
+    }
 }

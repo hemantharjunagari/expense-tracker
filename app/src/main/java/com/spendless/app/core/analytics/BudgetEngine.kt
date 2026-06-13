@@ -33,7 +33,11 @@ class BudgetEngine @Inject constructor(
         val currentMonth = calendar.get(Calendar.MONTH)
 
         // Determine if we're before or after the reset day this month
-        return if (currentDay >= resetDay) {
+        // For short months (like February or 30-day months), cap the resetDay
+        val maxDayThisMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+        val cappedResetDay = minOf(resetDay, maxDayThisMonth)
+
+        return if (currentDay >= cappedResetDay) {
             // Cycle started this month on resetDay
             val start = cycleStartMillis(currentYear, currentMonth, resetDay)
             val end = cycleEndMillis(currentYear, currentMonth + 1, resetDay)

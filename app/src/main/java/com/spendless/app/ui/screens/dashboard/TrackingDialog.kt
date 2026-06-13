@@ -582,20 +582,13 @@ private fun DailyBarView(data: List<AnalyticsEngine.DailyIncomeExpense>) {
 
 @Composable
 private fun CalendarView(data: List<AnalyticsEngine.DailyIncomeExpense>) {
-    val calendar = Calendar.getInstance().apply {
-        val startMs = data.firstOrNull()?.dateMs ?: System.currentTimeMillis()
-        timeInMillis = startMs
-        set(Calendar.DAY_OF_MONTH, 1)
-    }
+    val tempCal = Calendar.getInstance()
+    // Group day data by (Year, Month)
+    val monthsData = data.groupBy { dayData ->
+        tempCal.timeInMillis = dayData.dateMs
+        tempCal.get(Calendar.YEAR) to tempCal.get(Calendar.MONTH)
+    }.toSortedMap(compareBy<Pair<Int, Int>> { it.first }.thenBy { it.second })
 
-    val currentMonth = calendar.get(Calendar.MONTH)
-    val currentYear = calendar.get(Calendar.YEAR)
-    val firstDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK) // 1 = Sun, 2 = Mon, ...
-    val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
-
-    val monthName = calendar.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale.getDefault()) ?: ""
-
-    // Group transaction aggregates by day of month
     val dataByDay = data.associateBy { dayData ->
         val cal = Calendar.getInstance().apply { timeInMillis = dayData.dateMs }
         "${cal.get(Calendar.YEAR)}-${cal.get(Calendar.MONTH)}-${cal.get(Calendar.DAY_OF_MONTH)}"
@@ -603,94 +596,119 @@ private fun CalendarView(data: List<AnalyticsEngine.DailyIncomeExpense>) {
 
     val weekdays = listOf("S", "M", "T", "W", "T", "F", "S")
 
-    // Construct grid cells
-    val totalCells = ((firstDayOfWeek - 1) + daysInMonth + 6) / 7 * 7
-    val daysList = mutableListOf<Int?>()
-    for (i in 1 until firstDayOfWeek) {
-        daysList.add(null)
-    }
-    for (day in 1..daysInMonth) {
-        daysList.add(day)
-    }
-    while (daysList.size < totalCells) {
-        daysList.add(null)
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(24.dp) // Spacing between different months
     ) {
-        // Month name header label
-        Text(
-            text = "$monthName $currentYear".uppercase(),
-            style = DotMatrixLabel.copy(fontSize = 9.sp, letterSpacing = 2.sp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center
-        )
-
-        // Weekday Row
-        Row(modifier = Modifier.fillMaxWidth()) {
-            weekdays.forEach { day ->
-                Text(
-                    text = day,
-                    modifier = Modifier.weight(1f),
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                )
+        if (monthsData.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No data to display in calendar", style = MaterialTheme.typography.bodyMedium)
             }
-        }
+        } else {
+            monthsData.forEach { (yearMonth, _) ->
+                val (year, month) = yearMonth
+                
+                val calendar = Calendar.getInstance().apply {
+                    set(Calendar.YEAR, year)
+                    set(Calendar.MONTH, month)
+                    set(Calendar.DAY_OF_MONTH, 1)
+                }
 
-        // Calendar grid cells
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            daysList.chunked(7).forEach { weekDays ->
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    weekDays.forEach { day ->
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                                .border(
-                                    width = 0.5.dp,
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.08f)
-                                )
-                                .padding(1.dp),
-                            contentAlignment = Alignment.TopCenter
-                        ) {
-                            if (day != null) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.fillMaxHeight()
-                                ) {
-                                    Text(
-                                        text = day.toString(),
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    
-                                    val dayKey = "$currentYear-$currentMonth-$day"
-                                    val dayData = dataByDay[dayKey]
-                                    
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        if (dayData != null && dayData.expense > 0) {
-                                            Text(
-                                                text = "-${formatCompact(dayData.expense)}",
-                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 7.sp, fontWeight = FontWeight.Bold),
-                                                color = Color(0xFFFF3B30),
-                                                maxLines = 1
+                val monthName = calendar.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale.getDefault()) ?: ""
+                val firstDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK) // 1 = Sun, 2 = Mon, ...
+                val daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+
+                // Construct grid cells
+                val totalCells = ((firstDayOfWeek - 1) + daysInMonth + 6) / 7 * 7
+                val daysList = mutableListOf<Int?>()
+                for (i in 1 until firstDayOfWeek) {
+                    daysList.add(null)
+                }
+                for (day in 1..daysInMonth) {
+                    daysList.add(day)
+                }
+                while (daysList.size < totalCells) {
+                    daysList.add(null)
+                }
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Month name header label
+                    Text(
+                        text = "$monthName $year".uppercase(),
+                        style = DotMatrixLabel.copy(fontSize = 10.sp, letterSpacing = 2.sp),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center
+                    )
+
+                    // Weekday Row
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        weekdays.forEach { day ->
+                            Text(
+                                text = day,
+                                modifier = Modifier.weight(1f),
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+
+                    // Calendar grid cells
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        daysList.chunked(7).forEach { weekDays ->
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                weekDays.forEach { day ->
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(44.dp)
+                                            .border(
+                                                width = 0.5.dp,
+                                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.08f)
                                             )
-                                        }
-                                        if (dayData != null && dayData.income > 0) {
-                                            Text(
-                                                text = "+${formatCompact(dayData.income)}",
-                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 7.sp, fontWeight = FontWeight.Bold),
-                                                color = Color(0xFF34C759),
-                                                maxLines = 1
-                                            )
+                                            .padding(1.dp),
+                                        contentAlignment = Alignment.TopCenter
+                                    ) {
+                                        if (day != null) {
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.SpaceBetween,
+                                                modifier = Modifier.fillMaxHeight()
+                                            ) {
+                                                Text(
+                                                    text = day.toString(),
+                                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                
+                                                val dayKey = "$year-$month-$day"
+                                                val dayData = dataByDay[dayKey]
+                                                
+                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    if (dayData != null && dayData.expense > 0) {
+                                                        Text(
+                                                            text = "-${formatCompact(dayData.expense)}",
+                                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 7.sp, fontWeight = FontWeight.Bold),
+                                                            color = Color(0xFFFF3B30),
+                                                            maxLines = 1
+                                                        )
+                                                    }
+                                                    if (dayData != null && dayData.income > 0) {
+                                                        Text(
+                                                            text = "+${formatCompact(dayData.income)}",
+                                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 7.sp, fontWeight = FontWeight.Bold),
+                                                            color = Color(0xFF34C759),
+                                                            maxLines = 1
+                                                        )
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }

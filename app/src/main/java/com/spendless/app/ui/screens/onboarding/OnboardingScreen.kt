@@ -32,9 +32,10 @@ import com.spendless.app.ui.components.DotMatrixBackground
 import com.spendless.app.ui.components.DotMatrixLoader
 import com.spendless.app.ui.theme.*
 import kotlinx.coroutines.launch
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.border
+import androidx.compose.ui.text.font.FontWeight
 
 @Composable
 fun OnboardingScreen(
@@ -373,10 +374,16 @@ private fun BudgetSetupPage(
     onBudgetChange: (String) -> Unit,
     onResetDayChange: (Int) -> Unit
 ) {
-    val resetDayOptions = listOf(1, 5, 10, 15, 20, 21, 25, 28, 30, 31)
+    val listState = rememberLazyListState()
+
+    // Smoothly scroll to the selected resetDay when page loads or selected day changes
+    LaunchedEffect(resetDay) {
+        val targetIndex = (resetDay - 1 - 2).coerceAtLeast(0)
+        listState.animateScrollToItem(targetIndex)
+    }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(40.dp),
+        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -409,36 +416,54 @@ private fun BudgetSetupPage(
             shape = SmallCardShape
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(28.dp))
 
         Text(
             text = "Budget resets on day",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Reset day selector
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(5),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
+        // Reset day scrollable selector (options 1 to 31)
+        LazyRow(
+            state = listState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp)
         ) {
-            items(resetDayOptions.size) { idx ->
-                val day = resetDayOptions[idx]
-                FilterChip(
-                    selected = day == resetDay,
-                    onClick = { onResetDayChange(day) },
-                    label = { Text(day.toString()) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    shape = ChipShape
-                )
+            items(31) { idx ->
+                val day = idx + 1
+                val isSelected = day == resetDay
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (isSelected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary 
+                                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                            shape = CircleShape
+                        )
+                        .clickable { onResetDayChange(day) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = day.toString(),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            fontFamily = SpaceMono
+                        ),
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
